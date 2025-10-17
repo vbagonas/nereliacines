@@ -1,1 +1,2 @@
 # nereliacines
+cia nosql kursas
