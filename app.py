@@ -5,15 +5,24 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from bson.decimal128 import Decimal128
 from bson.json_util import dumps, RELAXED_JSON_OPTIONS
-
+import yaml
 from flask import Flask, request, jsonify
 from pymongo import MongoClient
 from bson import ObjectId
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://vaiciutemigle_db_user:RSfeISmEhRRhRma9@manomb.gi8bjhg.mongodb.net/")
+# pasiemam credentials is failo kad neapalikt internete visiems matomus
+with open('mongo_creds.yml', 'r') as f:
+    data = yaml.safe_load(f) or {}
+users = data.get('users', data)
+username = users['username']
+password = users['password']
+
+
+MONGO_URI = os.getenv("MONGO_URI", f"mongodb+srv://{username}:{password}@manomb.gi8bjhg.mongodb.net/")
 DB_NAME = os.getenv("DB_NAME", "eVent")
 PORT = int(os.getenv("PORT", "8000"))
-ORGANIZER_NAME = os.getenv("ORGANIZER_NAME", "Vilniaus universitetas")
+ORGANIZER_NAME = os.getenv("ORGANIZER_NAME", "Vilniaus universitetas") # ar sita eilute kazka daro?
+
 
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
