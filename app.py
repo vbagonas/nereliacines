@@ -13,6 +13,7 @@ from bson import ObjectId
 # pasiemam credentials is failo kad neapalikt internete visiems matomus
 with open('mongo_creds.yml', 'r') as f:
     data = yaml.safe_load(f) or {}
+    
 users = data.get('users', data)
 username = users['username']
 password = users['password']
