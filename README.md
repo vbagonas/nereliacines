@@ -1,2 +1,2 @@
 # nereliacines
-cia nosql kursas papildom blablabla
+cia nosql kursas papildom blablabla asodasuoind
