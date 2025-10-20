@@ -4,11 +4,14 @@ from bson import Decimal128
 from decimal import Decimal, InvalidOperation
 from bson.json_util import dumps, RELAXED_JSON_OPTIONS
 import bcrypt
-from mongas.db import MongoDB
+
+from backend.mongas.db import MongoDB
+from backend.redysas.ops import RedisClient
 
 class EventApp:
-    def __init__(self, port=5000):
+    def __init__(self, port=8080):
         self.db = MongoDB()
+        self.redis = RedisClient()
         self.port = port
         self.app = Flask(__name__)
         self._register_routes()
@@ -255,3 +258,6 @@ class EventApp:
     def run(self):
         self.app.run(host="0.0.0.0", port=self.port, debug=True)
 
+if __name__=="__main__":
+    app = EventApp()
+    app.run()
