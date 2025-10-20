@@ -1,7 +1,0 @@
-mongo_user:
-  username: vaiciutemigle_db_user
-  password: RSfeISmEhRRhRma9
-
-redis_user:
-  username: default
-  password: GCps2O6cN5oT4x03VkWNCwRlbphuNfIk
