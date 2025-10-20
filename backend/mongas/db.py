@@ -1,6 +1,7 @@
 from pathlib import Path
 import yaml
 from pymongo import MongoClient
+import certifi
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -13,11 +14,11 @@ class MongoDB():
         self.uzsakymai = self.db["Užsakymai"] 
 
     def connect(self):
-        if self.client is None:
-            with open(PROJECT_ROOT/'creds.yml', 'r') as f:
-                data = yaml.safe_load(f) or {}
-            creds = data.get('mongo_user', data)
-            self.client = MongoClient(f"mongodb+srv://{creds['username']}:{creds['password']}@manomb.gi8bjhg.mongodb.net/")
+        with open(PROJECT_ROOT/'creds.yml', 'r') as f:
+            data = yaml.safe_load(f) or {}
+        creds = data.get('mongo_user', data)
+        self.client = MongoClient(f"mongodb+srv://{creds['username']}:{creds['password']}@manomb.gi8bjhg.mongodb.net/", 
+                                  tlsCAFile=certifi.where())
 
         return self.client
 

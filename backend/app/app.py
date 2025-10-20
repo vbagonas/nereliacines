@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from datetime import datetime, timezone
 from bson import Decimal128
 from decimal import Decimal, InvalidOperation
@@ -14,6 +15,7 @@ class EventApp:
         self.redis = RedisClient()
         self.port = port
         self.app = Flask(__name__)
+        CORS(self.app)
         self._register_routes()
 
     # --------------------------
@@ -63,14 +65,14 @@ class EventApp:
         @app.post("/api/v1/register")
         def register_user():
             payload = request.get_json(force=True)
-            email = payload.get("_id") or payload.get("vartotojo_id")
+            email = payload.get("email")
             if not email:
                 return app.response_class(
                     dumps({"ok": False, "error": "Missing user id (email)."}, json_options=RELAXED_JSON_OPTIONS),
                     mimetype="application/json", status=400
                 )
 
-            slaptazodis = payload.get("Slaptazodis")
+            slaptazodis = payload.get("slaptazodis")
             if not slaptazodis:
                 return app.response_class(
                     dumps({"ok": False, "error": "Password is required"}, json_options=RELAXED_JSON_OPTIONS),
@@ -86,12 +88,12 @@ class EventApp:
 
             user_doc = {
                 "_id": email,
-                "Vardas": payload.get("Vardas"),
-                "Pavarde": payload.get("Pavarde"),
-                "Gimimo_data": payload.get("Gimimo_data"),
-                "Tel_numeris": payload.get("Tel_numeris"),
-                "Miestas": payload.get("Miestas"),
-                "Pomegiai": payload.get("Pomegiai", []) or [],
+                "Vardas": payload.get("vardas"),
+                "Pavarde": payload.get("pavarde"),
+                "Gimimo_data": payload.get("gimimo_data"),
+                "Tel_numeris": payload.get("tel_numeris"),
+                "Miestas": payload.get("miestas"),
+                "Pomegiai": payload.get("pomegiai", []) or [],
                 "Slaptazodis": hashed_password,
             }
 
