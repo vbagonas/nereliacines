@@ -16,3 +16,13 @@ pip install -r requirements.txt
 python front/manage.py migrate
 ```
 ### Projekto paleidimas
+Paleisti projekta is projekto root aplanko ```/nereliacines```.
+
+```
+python start.py
+```
+
+Nepamirskit aktyvuoti savo virtualia aplinka.
+
+
+Jeigu naudojat kazkokius naujus packages padarykit ```pip freeze > requirements.txt``` pries pushinant.
