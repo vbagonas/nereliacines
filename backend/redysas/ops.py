@@ -26,18 +26,11 @@ class RedisClient:
         )
 
         return self.client
-
-    def test_connection(self):
-        try:
-            self.client.ping()
-            print("Connected to Redis successfully!")
-        except redis.exceptions.ConnectionError as e:
-            print("Failed to connect:", e)
-
+    
     def set_cache(self, key, value, ttl=None):
         """Save Python object (dict, list) to Redis as JSON with optional TTL."""
         try:
-            value_json = json.dumps(value)
+            value_json = json.dumps(value, default=str)
             if ttl:
                 self.client.setex(key, timedelta(seconds=ttl), value_json)
             else:
@@ -65,6 +58,5 @@ class RedisClient:
 if __name__ == "__main__":
     red = RedisClient()
     red.connect()
-    red.test_connection()
     red.client.set("foo", "bar")
     print(red.client.get("foo"))
