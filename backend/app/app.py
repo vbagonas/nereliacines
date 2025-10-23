@@ -134,13 +134,16 @@ class EventApp:
 
             with self.client.start_session() as s:
                 with s.start_transaction():
-                    ev = self.db.renginiai.find_one({"_id": renginys_id}, session=s)
+                    cache_key = f"event:{renginys_id}"
+                    ev = self.redis.get_cache(cache_key)
                     if not ev:
-                        return app.response_class(
-                            dumps({"ok": False, "error": "Event not found."}, json_options=RELAXED_JSON_OPTIONS),
-                            mimetype="application/json", status=404
-                        )
-
+                        ev = self.db.renginiai.find_one({"_id": renginys_id}, session=s)
+                        if not ev:
+                            return app.response_class(
+                                dumps({"ok": False, "error": "Event not found."}, json_options=RELAXED_JSON_OPTIONS),
+                                mimetype="application/json", status=404
+                                )
+                        
                     tickets = ev.get("Bilieto_tipas") or []
                     if not tickets:
                         return app.response_class(
@@ -190,13 +193,49 @@ class EventApp:
                         }]
                     }
                     ins = self.db.uzsakymai.insert_one(order, session=s)
+                    self.redis.invalidate_cache(cache_key)
 
             return app.response_class(
                 dumps({"ok": True, "message": "Purchase successful.", "order_id": str(ins.inserted_id), "order": order},
                       json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
+        
+        # ---------------------
+        # Reading events
+        # ---------------------
+        
+        @app.get("/api/v1/events/<renginys_id>")
+        def read_event(renginys_id):
+            cache_key = f"event:{renginys_id}"
+    
+            # Patikrinam Redis cache
+            cached = self.redis.get_cache(cache_key)
+            if cached:
+                print(f"Loaded event {renginys_id} from Redis")
+                return app.response_class(
+                    dumps({"cached": True, "event": cached}, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json"
+                )
 
+            # Jei nėra cache, paimame iš Mongo
+            event = self.db.renginiai.find_one({"_id": renginys_id})
+            if not event:
+                return app.response_class(
+                    dumps({"ok": False, "error": "Event not found"}, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json",
+                    status=404
+                )
+
+            # Įdedam į cache 
+            self.redis.set_cache(cache_key, event)
+            print(f"Loaded event {renginys_id} from Mongo and cached in Redis")
+
+            return app.response_class(
+                dumps({"cached": False, "event": event}, json_options=RELAXED_JSON_OPTIONS),
+                mimetype="application/json"
+            )
+        
         # ----------------------
         # Analytics endpoints
         # ----------------------
@@ -214,6 +253,66 @@ class EventApp:
                 dumps(doc, json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
+        
+        @app.get("/api/v1/analytics/top3-by-tickets")
+        def top3_by_tickets():
+            cache_key = "analytics:top3_events"
+    
+        # Try Redis cache first
+            cached = self.redis.get_cache(cache_key)
+            if cached:
+                print("Returning top3 events from Redis cache")
+                return app.response_class(
+                    dumps(cached, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json")
+
+            print("Computing aggregation in MongoDB...")
+            pipeline = [
+                {"$unwind": {"path": "$Bilietai", "preserveNullAndEmptyArrays": False}},
+                {"$group": {
+                    "_id": "$Bilietai.renginys_id",
+                    "tickets_sold": {"$sum": {"$toInt": {"$ifNull": ["$Bilietai.Kiekis", 0]}}}
+                }},
+
+                {"$sort": {"tickets_sold": -1}},
+                {"$limit": 3},
+
+                {"$lookup": {
+                    "from": "Renginiai",
+                    "localField": "_id",
+                    "foreignField": "_id",
+                    "as": "event"
+                }},
+                {"$unwind": "$event"},
+                {"$project": {
+                    "_id": 0,
+                    "renginys_id": "$_id",
+                    "tickets_sold": 1,
+                    "Pavadinimas": "$event.Pavadinimas",
+                    "Data": "$event.Data",
+                    "Miestas": "$event.Miestas",
+                    "Vieta": "$event.Vieta",
+                    "Tipas": "$event.Tipas"
+                }},
+
+                {"$group": {
+                    "_id": None,
+                    "data": {"$push": "$$ROOT"},
+                    "count": {"$sum": 1}}},
+                {"$project": {"_id": 0, "count": 1, "data": 1}}
+            ]
+
+
+            doc = next(self.db.uzsakymai.aggregate(pipeline), {"count": 0, "data": []})
+    
+            # Cache result for 10 minutes (600 seconds)
+            self.redis.set_cache(cache_key, doc, ttl=600)
+    
+            return app.response_class(
+                dumps(doc, json_options=RELAXED_JSON_OPTIONS),
+                mimetype="application/json"
+            )
+
 
     # ----------------------
     # Utility methods
