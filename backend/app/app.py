@@ -27,7 +27,7 @@ class EventApp:
         @app.get("/_health")
         def health():
             try:
-                self.client.admin.command("ping")
+                self.db.client.admin.command("ping")
                 return jsonify({
                     "ok": True,
                     "time": datetime.now(timezone.utc).isoformat() + "Z",
@@ -104,7 +104,15 @@ class EventApp:
                 dumps({"ok": True, "user": public_user}, json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
-
+        # ----------------------
+        # Show events service
+        # ----------------------
+        @app.get("/api/events")
+        def events():
+            events = list(self.db.renginiai.find())
+            for e in events:
+                e["_id"] = str(e["_id"])  # convert ObjectId to string
+            return jsonify(events)
         # ----------------------
         # Purchase service
         # ----------------------
@@ -132,7 +140,7 @@ class EventApp:
                     mimetype="application/json", status=404
                 )
 
-            with self.client.start_session() as s:
+            with self.db.client.start_session() as s:
                 with s.start_transaction():
                     ev = self.db.renginiai.find_one({"_id": renginys_id}, session=s)
                     if not ev:

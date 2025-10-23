@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        }
+
+        .navbar {
+            background-color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 0 !important;
+            min-height: 45px !important;
+        }
+
+        .navbar .container-fluid,
+        .navbar .container {
+            padding: 0 10px !important;
+        }
+
+        .navbar-brand,
+        .navbar-nav .nav-link {
+            padding: 0 !important;
+            margin: 0 8px !important;
+            line-height: 45px; /* aligns text vertically */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            margin-top: 15px !important;
+        }
+        .navbar-brand {
+            font-size: 1.2rem;
+        }
+
+        .container {
+            margin-top: 30px; /* smaller gap below navbar */
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-title {
+            color: #333;
+            font-weight: 600;
+        }
+        
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">Event Manager</a>
+            <div class="ms-auto">
+                <a href="{% url 'logout' %}" class="btn btn-outline-primary">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="text-center text-white mb-4">Upcoming Events</h1>
+        <div id="eventsContainer" class="row g-4 justify-content-center"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8080/api/events';
+
+        async function loadEvents() {
+            try {
+                const response = await fetch(API_URL);
+                const events = await response.json();
+
+                const container = document.getElementById('eventsContainer');
+                container.innerHTML = '';
+
+                if (events.length === 0) {
+                    container.innerHTML = '<p class="text-center text-white fs-5">No events available.</p>';
+                    return;
+                }
+
+                events.forEach(event => {
+                    const card = document.createElement('div');
+                    card.className = 'col-md-4 col-sm-6';
+
+                    card.innerHTML = `
+                    <div class="card p-3 h-100 shadow-sm">
+                        <div class="card-body">
+                        <h5 class="card-title fw-bold mb-2">${event.Pavadinimas}</h5>
+                        <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
+                        <p class="text-muted mb-1"><strong>Adresas:</strong> ${event.Adresas}</p>
+                        <p class="text-muted mb-1"><strong>Vieta:</strong> ${event.Vieta}</p>
+                        <p class="text-muted mb-1"><strong>Tipas:</strong> ${event.Tipas}</p>
+                        <p class="text-muted mb-1"><strong>Data:</strong> ${new Date(event.Data).toLocaleString()}</p>
+                        <p class="text-muted mb-1"><strong>Trukmė:</strong> ${event.Renginio_trukme} min</p>
+                        <p class="text-muted mb-1"><strong>Amžiaus cenzas:</strong> ${event.Amziaus_cenzas}</p>
+
+                        <hr>
+
+                        <p class="fw-semibold mb-1">Bilieto tipas:</p>
+                        ${event.Bilieto_tipas.map(b => `
+                            <p class="text-muted mb-0">ID: ${b.Bilieto_tipas_id}, Kaina: ${b.Kaina}€, Likutis: ${b.Likutis}</p>
+                        `).join('')}
+
+                        <hr>
+
+                        <p class="fw-semibold mb-1">Organizatorius:</p>
+                        ${event.Organizatorius.map(o => `
+                            <p class="text-muted mb-0">${o.Pavadinimas} (${o.El_pastas})</p>
+                        `).join('')}
+                        </div>
+                    </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                console.error('Error fetching events:', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadEvents);
+    </script>
+</body>
+</html>
