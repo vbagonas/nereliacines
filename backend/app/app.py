@@ -27,7 +27,7 @@ class EventApp:
         @app.get("/_health")
         def health():
             try:
-                self.client.admin.command("ping")
+                self.db.client.admin.command("ping")
                 return jsonify({
                     "ok": True,
                     "time": datetime.now(timezone.utc).isoformat() + "Z",
@@ -132,7 +132,7 @@ class EventApp:
                     mimetype="application/json", status=404
                 )
 
-            with self.client.start_session() as s:
+            with self.db.client.start_session() as s:
                 with s.start_transaction():
                     cache_key = f"event:{renginys_id}"
                     ev = self.redis.get_cache(cache_key)
