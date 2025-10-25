@@ -5,6 +5,7 @@ from bson import Decimal128
 from decimal import Decimal, InvalidOperation
 from bson.json_util import dumps, RELAXED_JSON_OPTIONS
 import bcrypt
+from datetime import datetime, timezone
 
 from backend.mongas.db import MongoDB
 from backend.redysas.ops import RedisClient
@@ -115,8 +116,7 @@ class EventApp:
             renginys_id = payload.get("renginys_id")
             bilieto_tipas_id = payload.get("bilieto_tipas_id")
             kiekis = int(payload.get("kiekis", 1))
-            kaina_hint = payload.get("kaina") or payload.get("kaina_hint")
-            idx_hint = payload.get("idx")
+            
 
             if not (vartotojo_id and renginys_id and kiekis > 0):
                 return app.response_class(
@@ -136,6 +136,7 @@ class EventApp:
                 with s.start_transaction():
                     cache_key = f"event:{renginys_id}"
                     ev = self.redis.get_cache(cache_key)
+
                     if not ev:
                         ev = self.db.renginiai.find_one({"_id": renginys_id}, session=s)
                         if not ev:
@@ -151,7 +152,7 @@ class EventApp:
                             mimetype="application/json", status=404
                         )
 
-                    idx = self._resolve_ticket_index(tickets, bilieto_tipas_id, kaina_hint, idx_hint)
+                    idx = self._resolve_ticket_index(tickets, bilieto_tipas_id, None, None)
                     if idx is None:
                         return app.response_class(
                             dumps({"ok": False, "error": "Ticket type not found."}, json_options=RELAXED_JSON_OPTIONS),
@@ -160,6 +161,7 @@ class EventApp:
 
                     chosen = tickets[idx]
                     bilieto_tipas_id = chosen.get("Bilieto_tipas_id")
+
                     kaina_dec128 = chosen.get("Kaina")
                     likutis = int(chosen.get("Likutis", 0))
 
@@ -193,7 +195,20 @@ class EventApp:
                         }]
                     }
                     ins = self.db.uzsakymai.insert_one(order, session=s)
+                    
+                    # Aktyvi invalidacija
                     self.redis.invalidate_cache(cache_key)
+
+                    # Patikrinam ar liko bilietų → jei ne, pašalinam iš valid_events
+                    updated_event = self.db.renginiai.find_one({"_id": renginys_id})
+                    tickets = updated_event.get("Bilieto_tipas", [])
+                    has_available = any(int(t.get("Likutis", 0)) > 0 for t in tickets)
+
+                    valid_ids = self.redis.get_cache("valid_events") or []
+                    if not has_available:
+                        valid_ids = [eid for eid in valid_ids if eid != str(renginys_id)]
+                        self.redis.set_cache("valid_events", valid_ids)
+
 
             return app.response_class(
                 dumps({"ok": True, "message": "Purchase successful.", "order_id": str(ins.inserted_id), "order": order},
@@ -236,6 +251,57 @@ class EventApp:
                 mimetype="application/json"
             )
         
+        @app.get("/api/v1/events")
+        def read_all_events():
+        # Patikrinam globalų valid_events raktą
+            valid_ids = self.redis.get_cache("valid_events")
+            
+            if valid_ids:
+                print("Loaded valid event IDs from Redis")
+                return app.response_class(
+                    dumps({"cached": True, "event_ids": valid_ids}, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json"
+                )
+
+        # Jei nėra cache, paimam visus renginius iš Mongo
+            print("Loading valid events from MongoDB...")
+            events = list(self.db.renginiai.find({}))
+
+            valid_ids = []
+            now = datetime.now(timezone.utc)
+
+            for ev in events:
+            # Tikrinam ar renginys turi bilietų likutį > 0
+                tickets = ev.get("Bilieto_tipas", [])
+                has_available = any(int(t.get("Likutis", 0)) > 0 for t in tickets)
+
+                event_date = ev.get("Data")
+                if isinstance(event_date, str):
+                # jei data Mongo kaip string, konvertuojam į datetime
+                    event_date = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
+
+                not_past = event_date > now
+                
+                if has_available and not_past:
+                    event_id_str = str(ev["_id"])
+                    valid_ids.append(event_id_str)
+
+                    # Kuriam atskirą raktą kiekvienam renginiui
+                    self.redis.set_cache(f"event:{event_id_str}", ev)
+                    print(f"Cached event {event_id_str}")
+
+            # Įrašom globalų sąrašą į cache
+            self.redis.set_cache("valid_events", valid_ids)
+            print("✅ Cached list of valid event IDs")
+
+            # Grąžinam rezultatą
+            return app.response_class(
+                dumps({"cached": False, "event_ids": valid_ids}, json_options=RELAXED_JSON_OPTIONS),
+                mimetype="application/json"
+            )
+
+
+
         # ----------------------
         # Analytics endpoints
         # ----------------------
