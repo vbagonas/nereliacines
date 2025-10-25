@@ -5,6 +5,7 @@ from bson import Decimal128
 from decimal import Decimal, InvalidOperation
 from bson.json_util import dumps, RELAXED_JSON_OPTIONS
 import bcrypt
+from datetime import datetime, timezone
 
 from backend.mongas.db import MongoDB
 from backend.redysas.ops import RedisClient
@@ -123,8 +124,7 @@ class EventApp:
             renginys_id = payload.get("renginys_id")
             bilieto_tipas_id = payload.get("bilieto_tipas_id")
             kiekis = int(payload.get("kiekis", 1))
-            kaina_hint = payload.get("kaina") or payload.get("kaina_hint")
-            idx_hint = payload.get("idx")
+            
 
             if not (vartotojo_id and renginys_id and kiekis > 0):
                 return app.response_class(
@@ -142,13 +142,17 @@ class EventApp:
 
             with self.db.client.start_session() as s:
                 with s.start_transaction():
-                    ev = self.db.renginiai.find_one({"_id": renginys_id}, session=s)
-                    if not ev:
-                        return app.response_class(
-                            dumps({"ok": False, "error": "Event not found."}, json_options=RELAXED_JSON_OPTIONS),
-                            mimetype="application/json", status=404
-                        )
+                    cache_key = f"event:{renginys_id}"
+                    ev = self.redis.get_cache(cache_key)
 
+                    if not ev:
+                        ev = self.db.renginiai.find_one({"_id": renginys_id}, session=s)
+                        if not ev:
+                            return app.response_class(
+                                dumps({"ok": False, "error": "Event not found."}, json_options=RELAXED_JSON_OPTIONS),
+                                mimetype="application/json", status=404
+                                )
+                        
                     tickets = ev.get("Bilieto_tipas") or []
                     if not tickets:
                         return app.response_class(
@@ -156,7 +160,7 @@ class EventApp:
                             mimetype="application/json", status=404
                         )
 
-                    idx = self._resolve_ticket_index(tickets, bilieto_tipas_id, kaina_hint, idx_hint)
+                    idx = self._resolve_ticket_index(tickets, bilieto_tipas_id, None, None)
                     if idx is None:
                         return app.response_class(
                             dumps({"ok": False, "error": "Ticket type not found."}, json_options=RELAXED_JSON_OPTIONS),
@@ -165,6 +169,7 @@ class EventApp:
 
                     chosen = tickets[idx]
                     bilieto_tipas_id = chosen.get("Bilieto_tipas_id")
+
                     kaina_dec128 = chosen.get("Kaina")
                     likutis = int(chosen.get("Likutis", 0))
 
@@ -198,12 +203,112 @@ class EventApp:
                         }]
                     }
                     ins = self.db.uzsakymai.insert_one(order, session=s)
+                    
+                    # Aktyvi invalidacija
+                    self.redis.invalidate_cache(cache_key)
+
+                    # Patikrinam ar liko bilietų → jei ne, pašalinam iš valid_events
+                    updated_event = self.db.renginiai.find_one({"_id": renginys_id})
+                    tickets = updated_event.get("Bilieto_tipas", [])
+                    has_available = any(int(t.get("Likutis", 0)) > 0 for t in tickets)
+
+                    valid_ids = self.redis.get_cache("valid_events") or []
+                    if not has_available:
+                        valid_ids = [eid for eid in valid_ids if eid != str(renginys_id)]
+                        self.redis.set_cache("valid_events", valid_ids)
+
 
             return app.response_class(
                 dumps({"ok": True, "message": "Purchase successful.", "order_id": str(ins.inserted_id), "order": order},
                       json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
+        
+        # ---------------------
+        # Reading events
+        # ---------------------
+        
+        @app.get("/api/v1/events/<renginys_id>")
+        def read_event(renginys_id):
+            cache_key = f"event:{renginys_id}"
+    
+            # Patikrinam Redis cache
+            cached = self.redis.get_cache(cache_key)
+            if cached:
+                print(f"Loaded event {renginys_id} from Redis")
+                return app.response_class(
+                    dumps({"cached": True, "event": cached}, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json"
+                )
+
+            # Jei nėra cache, paimame iš Mongo
+            event = self.db.renginiai.find_one({"_id": renginys_id})
+            if not event:
+                return app.response_class(
+                    dumps({"ok": False, "error": "Event not found"}, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json",
+                    status=404
+                )
+
+            # Įdedam į cache 
+            self.redis.set_cache(cache_key, event)
+            print(f"Loaded event {renginys_id} from Mongo and cached in Redis")
+
+            return app.response_class(
+                dumps({"cached": False, "event": event}, json_options=RELAXED_JSON_OPTIONS),
+                mimetype="application/json"
+            )
+        
+        @app.get("/api/v1/events")
+        def read_all_events():
+        # Patikrinam globalų valid_events raktą
+            valid_ids = self.redis.get_cache("valid_events")
+            
+            if valid_ids:
+                print("Loaded valid event IDs from Redis")
+                return app.response_class(
+                    dumps({"cached": True, "event_ids": valid_ids}, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json"
+                )
+
+        # Jei nėra cache, paimam visus renginius iš Mongo
+            print("Loading valid events from MongoDB...")
+            events = list(self.db.renginiai.find({}))
+
+            valid_ids = []
+            now = datetime.now(timezone.utc)
+
+            for ev in events:
+            # Tikrinam ar renginys turi bilietų likutį > 0
+                tickets = ev.get("Bilieto_tipas", [])
+                has_available = any(int(t.get("Likutis", 0)) > 0 for t in tickets)
+
+                event_date = ev.get("Data")
+                if isinstance(event_date, str):
+                # jei data Mongo kaip string, konvertuojam į datetime
+                    event_date = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
+
+                not_past = event_date > now
+                
+                if has_available and not_past:
+                    event_id_str = str(ev["_id"])
+                    valid_ids.append(event_id_str)
+
+                    # Kuriam atskirą raktą kiekvienam renginiui
+                    self.redis.set_cache(f"event:{event_id_str}", ev)
+                    print(f"Cached event {event_id_str}")
+
+            # Įrašom globalų sąrašą į cache
+            self.redis.set_cache("valid_events", valid_ids)
+            print("✅ Cached list of valid event IDs")
+
+            # Grąžinam rezultatą
+            return app.response_class(
+                dumps({"cached": False, "event_ids": valid_ids}, json_options=RELAXED_JSON_OPTIONS),
+                mimetype="application/json"
+            )
+
+
 
         # ----------------------
         # Analytics endpoints
@@ -222,6 +327,66 @@ class EventApp:
                 dumps(doc, json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
+        
+        @app.get("/api/v1/analytics/top3-by-tickets")
+        def top3_by_tickets():
+            cache_key = "analytics:top3_events"
+    
+        # Try Redis cache first
+            cached = self.redis.get_cache(cache_key)
+            if cached:
+                print("Returning top3 events from Redis cache")
+                return app.response_class(
+                    dumps(cached, json_options=RELAXED_JSON_OPTIONS),
+                    mimetype="application/json")
+
+            print("Computing aggregation in MongoDB...")
+            pipeline = [
+                {"$unwind": {"path": "$Bilietai", "preserveNullAndEmptyArrays": False}},
+                {"$group": {
+                    "_id": "$Bilietai.renginys_id",
+                    "tickets_sold": {"$sum": {"$toInt": {"$ifNull": ["$Bilietai.Kiekis", 0]}}}
+                }},
+
+                {"$sort": {"tickets_sold": -1}},
+                {"$limit": 3},
+
+                {"$lookup": {
+                    "from": "Renginiai",
+                    "localField": "_id",
+                    "foreignField": "_id",
+                    "as": "event"
+                }},
+                {"$unwind": "$event"},
+                {"$project": {
+                    "_id": 0,
+                    "renginys_id": "$_id",
+                    "tickets_sold": 1,
+                    "Pavadinimas": "$event.Pavadinimas",
+                    "Data": "$event.Data",
+                    "Miestas": "$event.Miestas",
+                    "Vieta": "$event.Vieta",
+                    "Tipas": "$event.Tipas"
+                }},
+
+                {"$group": {
+                    "_id": None,
+                    "data": {"$push": "$$ROOT"},
+                    "count": {"$sum": 1}}},
+                {"$project": {"_id": 0, "count": 1, "data": 1}}
+            ]
+
+
+            doc = next(self.db.uzsakymai.aggregate(pipeline), {"count": 0, "data": []})
+    
+            # Cache result for 10 minutes (600 seconds)
+            self.redis.set_cache(cache_key, doc, ttl=600)
+    
+            return app.response_class(
+                dumps(doc, json_options=RELAXED_JSON_OPTIONS),
+                mimetype="application/json"
+            )
+
 
     # ----------------------
     # Utility methods
