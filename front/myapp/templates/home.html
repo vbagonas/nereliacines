@@ -238,20 +238,23 @@
             renderCart();
         }
 
-        async function addToCart(ticketId, price, name, eventId) {  // Add eventId parameter
-            const existing = Catalog.get(ticketId) || {};
-            Catalog.set(ticketId, {
+        async function addToCart(ticketId, price, name, eventId) {
+            const cartKey = `${eventId}:${ticketId}`;  // Composite key
+            
+            const existing = Catalog.get(cartKey) || {};
+            Catalog.set(cartKey, {
                 ...existing,
                 name: name ?? existing.name ?? `Bilietas ${ticketId}`,
                 price: Number(price ?? existing.price ?? 0),
-                eventId: eventId ?? existing.eventId ?? null  // Set eventId here
+                eventId: eventId,
+                ticketId: ticketId  // Store original ticketId separately
             });
 
             const owner = getOwnerId();
             const res = await fetch(CART_POST_URL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ owner_id: owner, product_id: ticketId, qty: 1 })
+                body: JSON.stringify({ owner_id: owner, product_id: cartKey, qty: 1 })  // Use composite key
             });
 
             const data = await res.json();
@@ -350,7 +353,7 @@
             const owner = getOwnerId();
             const purchaseBtn = document.getElementById('purchase-btn');
 
-            const entries = Object.entries(serverCart); // [ [ticketId, qty], ... ]
+            const entries = Object.entries(serverCart);
             if (!entries.length) {
                 alert('Krepšelis tuščias!');
                 return;
@@ -361,14 +364,13 @@
             purchaseBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Apdorojama...';
 
             try {
-                // Loop through each ticket type
-                for (const [ticketId, qtyStr] of entries) {
+                for (const [cartKey, qtyStr] of entries) {  // cartKey is "eventId:ticketId"
                     const qty = Number(qtyStr || 0);
                     if (qty <= 0) continue;
 
-                    const meta = Catalog.get(ticketId);
-                    if (!meta || !meta.eventId) {
-                        throw new Error(`Nerasta renginio ID bilietui ${ticketId}`);
+                    const meta = Catalog.get(cartKey);
+                    if (!meta || !meta.eventId || !meta.ticketId) {
+                        throw new Error(`Nerasta renginio ID bilietui ${cartKey}`);
                     }
 
                     const resp = await fetch(PURCHASE_URL, {
@@ -377,7 +379,7 @@
                         body: JSON.stringify({
                             vartotojo_id: owner,
                             renginys_id: meta.eventId,
-                            bilieto_tipas_id: ticketId,
+                            bilieto_tipas_id: meta.ticketId,  // ✅ Send original ticketId, not composite key
                             kiekis: qty
                         })
                     });
@@ -390,8 +392,8 @@
                 }
 
                 alert('Bilietai sėkmingai nupirkti!');
-                await clearCart();   // clear cart
-                await loadEvents();  // refresh stock
+                await clearCart();
+                await loadEvents();
             } catch (err) {
                 console.error(err);
                 alert(String(err.message || err));
@@ -400,6 +402,8 @@
                 purchaseBtn.innerHTML = oldHtml;
             }
         }
+
+
         async function loadTop3Events() {
             try {
                 const response = await fetch(TOP3_URL);
