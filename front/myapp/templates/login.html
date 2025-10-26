@@ -159,6 +159,7 @@
                 const data = await response.json();
                 
                 if (response.ok) {
+                    localStorage.setItem('ownerId', document.getElementById('email').value.trim().toLowerCase());
                     messageDiv.className = 'message success';
                     messageDiv.textContent = '✓ Login successful!';
                     messageDiv.style.display = 'block';

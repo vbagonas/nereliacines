@@ -10,6 +10,14 @@ from datetime import datetime, timezone
 from backend.mongas.db import MongoDB
 from backend.redysas.ops import RedisClient
 
+# ----------------------
+# Cart (Redis) constants
+# ----------------------
+CART_TTL = 60 * 60 * 24 * 7  # 7 days
+
+def cart_key(owner_id: str) -> str:
+    return f"cart:{owner_id}"
+
 class EventApp:
     def __init__(self, port=8080):
         self.db = MongoDB()
@@ -105,7 +113,15 @@ class EventApp:
                 dumps({"ok": True, "user": public_user}, json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
-
+        # ----------------------
+        # Show events service
+        # ----------------------
+        @app.get("/api/events")
+        def events():
+            events = list(self.db.renginiai.find())
+            for e in events:
+                e["_id"] = str(e["_id"])  # convert ObjectId to string
+            return jsonify(events)
         # ----------------------
         # Purchase service
         # ----------------------
@@ -268,7 +284,7 @@ class EventApp:
             events = list(self.db.renginiai.find({}))
 
             valid_ids = []
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
 
             for ev in events:
             # Tikrinam ar renginys turi bilietų likutį > 0
@@ -300,7 +316,76 @@ class EventApp:
                 mimetype="application/json"
             )
 
+        # ----------------------
+        # Cart API (Redis Hash)
+        # ----------------------
+        @app.get("/api/v1/cart")
+        def cart_get():
+            owner_id = (request.args.get("owner_id") or "").strip()
+            if not owner_id:
+                return jsonify({"ok": False, "error": "owner_id is required"}), 400
 
+            items = self.redis.client.hgetall(cart_key(owner_id)) or {}
+            return jsonify({"ok": True, "items": items})
+
+        @app.post("/api/v1/cart")
+        def cart_add():
+            """
+            Body: { "owner_id": "...", "product_id": "...", "qty": 1 }
+            Increments qty (creates if absent). Removes if result <= 0.
+            """
+            data = request.get_json(force=True)
+            owner_id = (data.get("owner_id") or "").strip()
+            product_id = str(data.get("product_id") or "").strip()
+            qty = int(data.get("qty", 1))
+
+            if not owner_id or not product_id or qty == 0:
+                return jsonify({"ok": False, "error": "owner_id, product_id and non-zero qty are required"}), 400
+
+            key = cart_key(owner_id)
+            current = int(self.redis.client.hget(key, product_id) or 0) + qty
+            if current <= 0:
+                self.redis.client.hdel(key, product_id)
+            else:
+                self.redis.client.hset(key, product_id, current)
+            self.redis.client.expire(key, CART_TTL)
+
+            return jsonify({"ok": True, "items": self.redis.client.hgetall(key) or {}})
+
+        @app.put("/api/v1/cart")
+        def cart_set():
+            """
+            Body: { "owner_id": "...", "product_id": "...", "qty": 3 }
+            Sets absolute quantity (deletes if qty <= 0).
+            """
+            data = request.get_json(force=True)
+            owner_id = (data.get("owner_id") or "").strip()
+            product_id = str(data.get("product_id") or "").strip()
+            qty = int(data.get("qty", 0))
+
+            if not owner_id or not product_id:
+                return jsonify({"ok": False, "error": "owner_id and product_id are required"}), 400
+
+            key = cart_key(owner_id)
+            if qty <= 0:
+                self.redis.client.hdel(key, product_id)
+            else:
+                self.redis.client.hset(key, product_id, qty)
+            self.redis.client.expire(key, CART_TTL)
+
+            return jsonify({"ok": True, "items": self.redis.client.hgetall(key) or {}})
+
+        @app.delete("/api/v1/cart")
+        def cart_clear():
+            """
+            Query: ?owner_id=...
+            """
+            owner_id = (request.args.get("owner_id") or "").strip()
+            if not owner_id:
+                return jsonify({"ok": False, "error": "owner_id is required"}), 400
+
+            self.redis.client.delete(cart_key(owner_id))
+            return jsonify({"ok": True})
 
         # ----------------------
         # Analytics endpoints

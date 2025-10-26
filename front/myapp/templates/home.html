@@ -113,34 +113,55 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        const EVENTS_URL = 'http://localhost:8080/api/v1/events';
-        const PURCHASE_URL = 'http://localhost:8080/api/purchase';
+        const EVENTS_URL = 'http://localhost:8080/api/events';
+        const PURCHASE_URL = 'http://localhost:8080/api/v1/purchase'; // Update with your actual endpoint
         const TOP3_URL = 'http://localhost:8080/api/v1/analytics/top3-by-tickets';
+
+        // --- New cart endpoints (your backend) ---
+        const API_V1 = 'http://localhost:8080/api/v1';
+        const CART_GET_URL     = (owner) => `${API_V1}/cart?owner_id=${encodeURIComponent(owner)}`;
+        const CART_POST_URL    = `${API_V1}/cart`;
+        const CART_PUT_URL     = `${API_V1}/cart`;
+        const CART_DELETE_URL  = (owner) => `${API_V1}/cart?owner_id=${encodeURIComponent(owner)}`;
+
+        function getOwnerId() {
+            const email = localStorage.getItem('ownerId');
+            if (!email) {
+                alert("User not logged in. Please log in again.");
+                window.location.href = "{% url 'login' %}";
+                throw new Error("User not logged in");
+            }
+            return email.trim().toLowerCase();
+        }
+
+        // -----------------------------
+        // Global state
+        // -----------------------------
+        const Catalog = new Map();   // ticketId -> {name, price}
+        let serverCart = {};         // { ticketId: qty }
 
         async function loadEvents() {
             try {
                 const response = await fetch(EVENTS_URL);
                 const events = await response.json();
-                console.log('Fetched events:', events);
 
                 const container = document.getElementById('eventsContainer');
                 container.innerHTML = '';
 
-                if (!events.event_ids || events.event_ids.length === 0) {
+                if (events.length === 0) {
                     container.innerHTML = '<p class="text-center text-white fs-5">No events available.</p>';
                     return;
                 }
 
-                // ✅ Proper async loop
-                for (const eventId of events.event_ids) {
-                    const response = await fetch(`http://localhost:8080/api/v1/events/${eventId}`);
-                    if (!response.ok) throw new Error(`Nepavyko gauti renginio duomenų (${eventId})`);
+                events.forEach(event => {
+                    (event.Bilieto_tipas || []).forEach(b => {
+                        const tid    = String(b.Bilieto_tipas_id);
+                        const price  = Number(b.Kaina);
+                        const name   = `${event.Pavadinimas} – ${tid}`;
+                        const eventId = String(event._id);
+                        if (!Catalog.has(tid)) Catalog.set(tid, { name, price, eventId });
+                    });
 
-                    const even_data = await response.json();
-                    const event = even_data.event;
-                    console.log('Rendering event:', event);
-
-                    // Create card
                     const card = document.createElement('div');
                     card.className = 'col-md-4 col-sm-6';
 
@@ -153,11 +174,7 @@
                                 <p class="text-muted mb-1"><strong>Vieta:</strong> ${event.Vieta}</p>
                                 <p class="text-muted mb-1">
                                     <strong>Data:</strong> ${new Date(event.Data).toLocaleString('lt-LT', {
-                                        year: 'numeric',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
+                                        year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
                                     })}
                                 </p>
                                 <p class="text-muted mb-1"><strong>Trukmė:</strong> ${event.Renginio_trukme} min</p>
@@ -167,12 +184,12 @@
 
                                 <p class="fw-semibold mb-1">Bilietai</p>
                                 <div class="row row-cols-1 row-cols-md-2 g-2">
-                                    ${event.Bilieto_tipas.map(b => `
+                                    ${(event.Bilieto_tipas || []).map(b => `
                                         <div class="col">
                                             <div class="d-flex align-items-center border rounded p-2">
                                                 <button class="btn btn-sm btn-outline-primary me-2 flex-shrink-0"
-                                                        onclick="addToCart('${b.id}', '${b.Kaina}', '${event.Pavadinimas.replace(/'/g, "\\'")}')">
-                                                    ${b.Kaina}€
+                                                        onclick="addToCart('${String(b.Bilieto_tipas_id)}', ${Number(b.Kaina)})">
+                                                    ${Number(b.Kaina)}€
                                                 </button>
                                                 <span class="text-muted small">
                                                     ${b.Bilieto_tipas_id} Likutis: ${b.Likutis}
@@ -185,111 +202,191 @@
                                 <hr>
 
                                 <p class="fw-semibold mb-1">Organizatorius:</p>
-                                ${event.Organizatorius.map(o => `
+                                ${(event.Organizatorius || []).map(o => `
                                     <p class="text-muted mb-0">${o.Pavadinimas} (${o.El_pastas})</p>
                                 `).join('')}
                             </div>
                         </div>
                     `;
-
                     container.appendChild(card);
-                }
+                });
+
+                await loadCartFromServer();
             } catch (err) {
                 console.error('Error fetching events:', err);
             }
         }
-
-        let cart = [];
-
-        function addToCart(id, price, name) {
-            const existing = cart.find(item => item.id === id);
-            if (existing) existing.qty += 1;
-            else cart.push({ id, name, price, qty: 1 });
-            updateCart();
+        // -----------------------------
+        // CART API CALLS
+        // -----------------------------
+        async function loadCartFromServer() {
+            const owner = getOwnerId();
+            const res = await fetch(CART_GET_URL(owner));
+            if (!res.ok) return;
+            const j = await res.json();
+            serverCart = j.items || {};
+            renderCart();
         }
 
-        function updateCart() {
-            const cartList = document.getElementById('cart-items');
-            const totalSpan = document.getElementById('cart-total');
-            const countSpan = document.getElementById('cart-count');
+        async function addToCart(ticketId, price, name) {
+            const existing = Catalog.get(ticketId) || {};
+            Catalog.set(ticketId, {
+                ...existing,
+                name: name ?? existing.name ?? `Bilietas ${ticketId}`,
+                price: Number(price ?? existing.price ?? 0),
+                eventId: existing.eventId ?? null, // keep if you set it elsewhere
+            });
+            const owner = getOwnerId();
+            const res = await fetch(CART_POST_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ owner_id: owner, product_id: ticketId, qty: 1 })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                serverCart = data.items || {};
+                renderCart();
+            } else {
+                alert('Nepavyko pridėti į krepšelį: ' + (data.error || res.status));
+            }
+        }
+
+        async function setCartQty(ticketId, qty) {
+            const owner = getOwnerId();
+            const res = await fetch(CART_PUT_URL, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ owner_id: owner, product_id: ticketId, qty: Number(qty) })
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            serverCart = data.items || {};
+            renderCart();
+        }
+
+        async function removeFromCart(ticketId) {
+            await setCartQty(ticketId, 0);
+        }
+
+        async function clearCart() {
+            const owner = getOwnerId();
+            await fetch(CART_DELETE_URL(owner), { method: 'DELETE' });
+            serverCart = {};
+            renderCart();
+        }
+
+        // -----------------------------
+        // CART RENDERING
+        // -----------------------------
+        function renderCart() {
+            const cartList    = document.getElementById('cart-items');
+            const totalSpan   = document.getElementById('cart-total');
+            const countSpan   = document.getElementById('cart-count');
             const purchaseBtn = document.getElementById('purchase-btn');
 
-            cartList.innerHTML = cart.map(item => `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div>
-                        <small class="d-block">${item.name}</small>
-                        <small class="text-muted">Kiekis: ${item.qty}</small>
-                    </div>
-                    <div class="d-flex align-items-center">
-                        <span class="me-2">${item.price * item.qty}€</span>
-                        <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart('${item.id}')">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('') || '<small class="text-muted">Krepšelis tuščias</small>';
+            const entries = Object.entries(serverCart);
+            if (!entries.length) {
+                cartList.innerHTML = '<small class="text-muted">Krepšelis tuščias</small>';
+                totalSpan.textContent = '0€';
+                countSpan.textContent = '0';
+                purchaseBtn.disabled = true;
+                return;
+            }
 
-            const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-            totalSpan.textContent = total + '€';
-            countSpan.textContent = cart.reduce((sum, i) => sum + i.qty, 0);
-            
-            // Disable purchase button if cart is empty
-            purchaseBtn.disabled = cart.length === 0;
+            let total = 0;
+            let count = 0;
+
+            cartList.innerHTML = entries.map(([tid, qtyStr]) => {
+                const qty  = Number(qtyStr || 0);
+                const meta = Catalog.get(tid) || { name: `Bilietas ${tid}`, price: 0 };
+                const line = meta.price * qty;
+                total += line;
+                count += qty;
+
+                return `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="me-2">
+                            <small class="d-block">${meta.name}</small>
+                            <div class="input-group input-group-sm" style="max-width: 140px;">
+                                <button class="btn btn-outline-secondary" onclick="setCartQty('${tid}', ${Math.max(0, qty-1)})">-</button>
+                                <input class="form-control text-center" value="${qty}" onchange="setCartQty('${tid}', this.value)" />
+                                <button class="btn btn-outline-secondary" onclick="setCartQty('${tid}', ${qty+1})">+</button>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="me-2">${line}€</span>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removeFromCart('${tid}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            totalSpan.textContent = `${total}€`;
+            countSpan.textContent = String(count);
+            purchaseBtn.disabled = entries.length === 0;
         }
 
-        function removeFromCart(id) {
-            cart = cart.filter(item => item.id !== id);
-            updateCart();
-        }
-
+        // -----------------------------
+        // Purchase flow (uses Redis cart)
+        // -----------------------------
         async function purchaseTickets() {
-            if (cart.length === 0) {
+            const owner = getOwnerId();
+            const purchaseBtn = document.getElementById('purchase-btn');
+
+            const entries = Object.entries(serverCart); // [ [ticketId, "qty"], ... ]
+            if (!entries.length) {
                 alert('Krepšelis tuščias!');
                 return;
             }
 
-            // Create array of ticket IDs with quantities
-            const ticketIds = [];
-            cart.forEach(item => {
-                for (let i = 0; i < item.qty; i++) {
-                    ticketIds.push(item.id);
-                }
-            });
-
-            const purchaseBtn = document.getElementById('purchase-btn');
+            // Busy state
             purchaseBtn.disabled = true;
+            const oldHtml = purchaseBtn.innerHTML;
             purchaseBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Apdorojama...';
 
             try {
-                const response = await fetch(PURCHASE_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        ticket_ids: ticketIds
-                    })
-                });
+            // Send one request per ticket type
+                for (const [ticketId, qtyStr] of entries) {
+                    const qty = Number(qtyStr || 0);
+                    if (qty <= 0) continue;
 
-                if (response.ok) {
-                    const result = await response.json();
-                    alert('Bilietai sėkmingai nupirkti!');
-                    cart = [];
-                    updateCart();
-                    loadEvents(); // Reload events to update ticket quantities
-                } else {
-                    const error = await response.json();
-                    alert('Klaida perkant bilietus: ' + (error.message || 'Nežinoma klaida'));
+                    const meta = Catalog.get(ticketId);
+                    if (!meta || !meta.eventId) {
+                        throw new Error(`Nerasta renginio ID bilietui ${ticketId}`);
+                    }
+
+                    const resp = await fetch(PURCHASE_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            vartotojo_id: owner,
+                            renginys_id:  meta.eventId,
+                            bilieto_tipas_id: ticketId,
+                            kiekis: qty
+                        })
+                    });
+
+                    const data = await resp.json().catch(() => ({}));
+                    if (!resp.ok || data?.ok === false) {
+                        const msg = data?.error || data?.message || `Klaida (${resp.status})`;
+                        throw new Error(`Nepavyko nupirkti ${meta.name}: ${msg}`);
+                    }
                 }
+
+                // Success
+                alert('Bilietai sėkmingai nupirkti!');
+                await clearCart();   // wipe Redis cart
+                await loadEvents();  // refresh UI / stock
             } catch (err) {
-                console.error('Purchase error:', err);
-                alert('Klaida siunčiant užklausą. Patikrinkite ryšį ir bandykite dar kartą.');
+                console.error(err);
+                alert(String(err.message || err));
             } finally {
                 purchaseBtn.disabled = false;
-                purchaseBtn.innerHTML = '<i class="bi bi-credit-card me-1"></i> Pirkti';
+                purchaseBtn.innerHTML = oldHtml;
             }
         }
-
 
         async function loadTop3Events() {
             try {
@@ -304,28 +401,27 @@
             }
         }
 
-        function renderTop3Events(responseData) {
+        function renderTop3Events(events) {
             const container = document.getElementById('top3Container');
             container.innerHTML = '';
 
-            // Extract the actual list of events
-            const events = responseData.data || [];
-
-            if (events.length === 0) {
+            if (!events || events.length === 0) {
                 container.innerHTML = '<p class="text-center text-white fs-6">Nėra duomenų apie pardavimus.</p>';
                 return;
             }
 
-            events.slice(0, 3).forEach((event, index) => {
+            events.slice(0, 3).forEach(event => {
                 const card = document.createElement('div');
                 card.className = 'col-md-4 col-sm-6';
 
                 card.innerHTML = `
                     <div class="card p-3 h-100 shadow-sm">
                         <div class="card-body text-center">
-                            <h5 class="card-title fw-bold mb-2">${index + 1}. ${event.Pavadinimas}</h5>
+                            <h5 class="card-title fw-bold mb-2">${event.Pavadinimas}</h5>
                             <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
                             <p class="text-muted mb-1"><strong>Data:</strong> ${new Date(event.Data).toLocaleDateString('lt-LT')}</p>
+                            <hr>
+                            <p class="fw-semibold text-success mb-1">Parduota bilietų: ${event.Bilietu_skaicius}</p>
                         </div>
                     </div>
                 `;
