@@ -16,7 +16,7 @@ class EventApp:
         self.redis = RedisClient()
         self.port = port
         self.app = Flask(__name__)
-        CORS(self.app, origins=["http://localhost:8000"])
+        CORS(self.app)
         self._register_routes()
 
     # --------------------------
