@@ -161,19 +161,14 @@ class EventApp:
                             mimetype="application/json", status=404
                         )
 
-                    idx = self._resolve_ticket_index(tickets, bilieto_tipas_id, None, None)
-                    if idx is None:
-                        return app.response_class(
-                            dumps({"ok": False, "error": "Ticket type not found."}, json_options=RELAXED_JSON_OPTIONS),
-                            mimetype="application/json", status=404
-                        )
+                    print(tickets)
+                    for ticket_type in tickets:
+                        print(ticket_type.get("Bilieto_tipas_id"), bilieto_tipas_id)
+                        if ticket_type.get("Bilieto_tipas_id") == bilieto_tipas_id:
+                            chosen = ticket_type
+                            break
 
-                    chosen = tickets[idx]
-                    bilieto_tipas_id = chosen.get("Bilieto_tipas_id")
-
-                    kaina_dec128 = chosen.get("Kaina")
                     likutis = int(chosen.get("Likutis", 0))
-
                     if kiekis > likutis:
                         return app.response_class(
                             dumps({"ok": False, "error": f"Not enough tickets. Remainder: {likutis}"},
@@ -200,7 +195,7 @@ class EventApp:
                             "renginys_id": renginys_id,
                             "Bilieto_tipas_id": bilieto_tipas_id,
                             "Kiekis": kiekis,
-                            "Kaina": kaina_dec128
+                            "Kaina": chosen.get("Kaina")
                         }]
                     }
                     ins = self.db.uzsakymai.insert_one(order, session=s)

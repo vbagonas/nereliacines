@@ -199,7 +199,7 @@
                                         <div class="col">
                                             <div class="d-flex align-items-center border rounded p-2">
                                             <button class="btn btn-sm btn-outline-primary me-2 flex-shrink-0"
-                                                    onclick="addToCart('${b.id}', '${b.Kaina}', '${event.Pavadinimas.replace(/'/g, "\\'")}', '${eventId}')">
+                                                    onclick="addToCart('${b.Bilieto_tipas_id}', '${b.Kaina}', '${event.Pavadinimas.replace(/'/g, "\\'")}', '${eventId}')">
                                                 ${b.Kaina}€
                                             </button>
                                                 <span class="text-muted small">
@@ -372,7 +372,7 @@
                     if (!meta || !meta.eventId || !meta.ticketId) {
                         throw new Error(`Nerasta renginio ID bilietui ${cartKey}`);
                     }
-
+                    console.log('Purchasing:', { owner, eventId: meta.eventId, ticketId: meta.ticketId, qty });
                     const resp = await fetch(PURCHASE_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
