@@ -114,75 +114,86 @@
 
     <script>
         const EVENTS_URL = 'http://localhost:8080/api/v1/events';
-        const PURCHASE_URL = 'http://localhost:8080/api/purchase'; // Update with your actual endpoint
+        const PURCHASE_URL = 'http://localhost:8080/api/purchase';
         const TOP3_URL = 'http://localhost:8080/api/v1/analytics/top3-by-tickets';
 
         async function loadEvents() {
             try {
                 const response = await fetch(EVENTS_URL);
                 const events = await response.json();
+                console.log('Fetched events:', events);
 
                 const container = document.getElementById('eventsContainer');
                 container.innerHTML = '';
 
-                if (events.length === 0) {
+                if (!events.event_ids || events.event_ids.length === 0) {
                     container.innerHTML = '<p class="text-center text-white fs-5">No events available.</p>';
                     return;
                 }
 
-                events.forEach(event => {
+                // ✅ Proper async loop
+                for (const eventId of events.event_ids) {
+                    const response = await fetch(`http://localhost:8080/api/v1/events/${eventId}`);
+                    if (!response.ok) throw new Error(`Nepavyko gauti renginio duomenų (${eventId})`);
+
+                    const even_data = await response.json();
+                    const event = even_data.event;
+                    console.log('Rendering event:', event);
+
+                    // Create card
                     const card = document.createElement('div');
                     card.className = 'col-md-4 col-sm-6';
 
                     card.innerHTML = `
-                    <div class="card p-3 h-100 shadow-sm">
-                        <div class="card-body">
-                        <h5 class="card-title fw-bold mb-2">${event.Pavadinimas}</h5>
-                        <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
-                        <p class="text-muted mb-1"><strong>Adresas:</strong> ${event.Adresas}</p>
-                        <p class="text-muted mb-1"><strong>Vieta:</strong> ${event.Vieta}</p>
-                        <p class="text-muted mb-1">
-                        <strong>Data:</strong> ${new Date(event.Data).toLocaleString('lt-LT', {
-                                                                                                year: 'numeric',
-                                                                                                month: '2-digit',
-                                                                                                day: '2-digit',
-                                                                                                hour: '2-digit',
-                                                                                                minute: '2-digit',
-                                                                                            })}
-                        </p>
-                        <p class="text-muted mb-1"><strong>Trukmė:</strong> ${event.Renginio_trukme} min</p>
-                        <p class="text-muted mb-1"><strong>Amžiaus cenzas:</strong> ${event.Amziaus_cenzas}</p>
+                        <div class="card p-3 h-100 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title fw-bold mb-2">${event.Pavadinimas}</h5>
+                                <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
+                                <p class="text-muted mb-1"><strong>Adresas:</strong> ${event.Adresas}</p>
+                                <p class="text-muted mb-1"><strong>Vieta:</strong> ${event.Vieta}</p>
+                                <p class="text-muted mb-1">
+                                    <strong>Data:</strong> ${new Date(event.Data).toLocaleString('lt-LT', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                    })}
+                                </p>
+                                <p class="text-muted mb-1"><strong>Trukmė:</strong> ${event.Renginio_trukme} min</p>
+                                <p class="text-muted mb-1"><strong>Amžiaus cenzas:</strong> ${event.Amziaus_cenzas}</p>
 
-                        <hr>
+                                <hr>
 
-                        <p class="fw-semibold mb-1">Bilietai</p>
-                        <div class="row row-cols-1 row-cols-md-2 g-2">
-                        ${event.Bilieto_tipas.map(b => `
-                            <div class="col">
-                            <div class="d-flex align-items-center border rounded p-2">
-                                <button class="btn btn-sm btn-outline-primary me-2 flex-shrink-0"
-                                        onclick="addToCart('${b.id}', '${b.Kaina}', '${event.Pavadinimas.replace(/'/g, "\\'")}')">
-                                ${b.Kaina}€
-                                </button>
-                                <span class="text-muted small">
-                                ${b.Bilieto_tipas_id} Likutis: ${b.Likutis}
-                                </span>
+                                <p class="fw-semibold mb-1">Bilietai</p>
+                                <div class="row row-cols-1 row-cols-md-2 g-2">
+                                    ${event.Bilieto_tipas.map(b => `
+                                        <div class="col">
+                                            <div class="d-flex align-items-center border rounded p-2">
+                                                <button class="btn btn-sm btn-outline-primary me-2 flex-shrink-0"
+                                                        onclick="addToCart('${b.id}', '${b.Kaina}', '${event.Pavadinimas.replace(/'/g, "\\'")}')">
+                                                    ${b.Kaina}€
+                                                </button>
+                                                <span class="text-muted small">
+                                                    ${b.Bilieto_tipas_id} Likutis: ${b.Likutis}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+
+                                <hr>
+
+                                <p class="fw-semibold mb-1">Organizatorius:</p>
+                                ${event.Organizatorius.map(o => `
+                                    <p class="text-muted mb-0">${o.Pavadinimas} (${o.El_pastas})</p>
+                                `).join('')}
                             </div>
-                            </div>
-                        `).join('')}
                         </div>
-
-                        <hr>
-
-                        <p class="fw-semibold mb-1">Organizatorius:</p>
-                        ${event.Organizatorius.map(o => `
-                            <p class="text-muted mb-0">${o.Pavadinimas} (${o.El_pastas})</p>
-                        `).join('')}
-                        </div>
-                    </div>
                     `;
+
                     container.appendChild(card);
-                });
+                }
             } catch (err) {
                 console.error('Error fetching events:', err);
             }
