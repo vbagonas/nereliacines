@@ -113,15 +113,7 @@ class EventApp:
                 dumps({"ok": True, "user": public_user}, json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
-        # ----------------------
-        # Show events service
-        # ----------------------
-        @app.get("/api/events")
-        def events():
-            events = list(self.db.renginiai.find())
-            for e in events:
-                e["_id"] = str(e["_id"])  # convert ObjectId to string
-            return jsonify(events)
+
         # ----------------------
         # Purchase service
         # ----------------------
@@ -151,6 +143,7 @@ class EventApp:
             with self.db.client.start_session() as s:
                 with s.start_transaction():
                     cache_key = f"event:{renginys_id}"
+                    print(cache_key)
                     ev = self.redis.get_cache(cache_key)
 
                     if not ev:
@@ -284,7 +277,7 @@ class EventApp:
             events = list(self.db.renginiai.find({}))
 
             valid_ids = []
-            now = datetime.now(timezone.utc)
+            now = datetime.now()
 
             for ev in events:
             # Tikrinam ar renginys turi bilietų likutį > 0
