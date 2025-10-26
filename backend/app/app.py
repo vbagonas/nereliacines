@@ -16,7 +16,7 @@ class EventApp:
         self.redis = RedisClient()
         self.port = port
         self.app = Flask(__name__)
-        CORS(self.app)
+        CORS(self.app, origins=["http://localhost:8000"])
         self._register_routes()
 
     # --------------------------
@@ -105,15 +105,7 @@ class EventApp:
                 dumps({"ok": True, "user": public_user}, json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
-        # ----------------------
-        # Show events service
-        # ----------------------
-        @app.get("/api/events")
-        def events():
-            events = list(self.db.renginiai.find())
-            for e in events:
-                e["_id"] = str(e["_id"])  # convert ObjectId to string
-            return jsonify(events)
+
         # ----------------------
         # Purchase service
         # ----------------------
@@ -276,7 +268,7 @@ class EventApp:
             events = list(self.db.renginiai.find({}))
 
             valid_ids = []
-            now = datetime.now(timezone.utc)
+            now = datetime.now()
 
             for ev in events:
             # Tikrinam ar renginys turi bilietų likutį > 0

@@ -113,7 +113,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        const EVENTS_URL = 'http://localhost:8080/api/events';
+        const EVENTS_URL = 'http://localhost:8080/api/v1/events';
         const PURCHASE_URL = 'http://localhost:8080/api/purchase'; // Update with your actual endpoint
         const TOP3_URL = 'http://localhost:8080/api/v1/analytics/top3-by-tickets';
 
@@ -293,27 +293,28 @@
             }
         }
 
-        function renderTop3Events(events) {
+        function renderTop3Events(responseData) {
             const container = document.getElementById('top3Container');
             container.innerHTML = '';
 
-            if (!events || events.length === 0) {
+            // Extract the actual list of events
+            const events = responseData.data || [];
+
+            if (events.length === 0) {
                 container.innerHTML = '<p class="text-center text-white fs-6">Nėra duomenų apie pardavimus.</p>';
                 return;
             }
 
-            events.slice(0, 3).forEach(event => {
+            events.slice(0, 3).forEach((event, index) => {
                 const card = document.createElement('div');
                 card.className = 'col-md-4 col-sm-6';
 
                 card.innerHTML = `
                     <div class="card p-3 h-100 shadow-sm">
                         <div class="card-body text-center">
-                            <h5 class="card-title fw-bold mb-2">${event.Pavadinimas}</h5>
+                            <h5 class="card-title fw-bold mb-2">${index + 1}. ${event.Pavadinimas}</h5>
                             <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
                             <p class="text-muted mb-1"><strong>Data:</strong> ${new Date(event.Data).toLocaleDateString('lt-LT')}</p>
-                            <hr>
-                            <p class="fw-semibold text-success mb-1">Parduota bilietų: ${event.Bilietu_skaicius}</p>
                         </div>
                     </div>
                 `;
