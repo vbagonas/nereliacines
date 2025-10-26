@@ -11,7 +11,7 @@ python front/manage.py migrate
 Windows (nezinau ar teisingai)
 ```
 python3 -m venv env
-./env/Scripts/acitvate
+./env/Scripts/activate
 pip install -r requirements.txt
 python front/manage.py migrate
 ```
