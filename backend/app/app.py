@@ -466,31 +466,6 @@ class EventApp:
     def verify_password(plain, hashed):
         return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
-    @staticmethod
-    def _resolve_ticket_index(tickets, bilieto_tipas_id, kaina_hint, idx_hint):
-        if bilieto_tipas_id:
-            for i, t in enumerate(tickets):
-                if t.get("Bilieto_tipas_id") == bilieto_tipas_id:
-                    return i
-        if kaina_hint is not None:
-            try:
-                hint_dec = Decimal(str(kaina_hint))
-                for i, t in enumerate(tickets):
-                    k = t.get("Kaina")
-                    if isinstance(k, Decimal128) and k.to_decimal() == hint_dec:
-                        return i
-            except (InvalidOperation, ValueError):
-                pass
-        if idx_hint is not None:
-            try:
-                idx_hint = int(idx_hint)
-                if 0 <= idx_hint < len(tickets):
-                    return idx_hint
-            except (TypeError, ValueError):
-                pass
-        if len(tickets) == 1:
-            return 0
-        return None
 
     # ----------------------
     # Run
