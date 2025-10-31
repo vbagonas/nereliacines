@@ -283,7 +283,8 @@ class EventApp:
                 if isinstance(event_date, str):
                 # jei data Mongo kaip string, konvertuojam į datetime
                     event_date = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
-
+                    
+                print(event_date, now)
                 not_past = event_date > now
                 
                 if has_available and not_past:
