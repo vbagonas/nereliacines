@@ -229,12 +229,68 @@
         // -----------------------------
         // CART API CALLS
         // -----------------------------
+
+        function parseCartKey(cartKey) {
+            const sep = cartKey.includes('#') ? '#' : (cartKey.includes(':') ? ':' : null);
+            if (!sep) return { eventId: cartKey, ticketId: null };
+            const [eventId, ticketId] = cartKey.split(sep);
+            return { eventId, ticketId };
+        }
+
         async function loadCartFromServer() {
             const owner = getOwnerId();
             const res = await fetch(CART_GET_URL(owner));
-            if (!res.ok) return;
+            if (!res.ok) {
+                serverCart = {};
+                renderCart();
+                return;
+            }
             const j = await res.json();
             serverCart = j.items || {};
+
+            // --- Build Catalog by fetching each event only once ---
+            const entries = Object.entries(serverCart);
+            const eventIds = new Set();
+            const pairs = []; // [{cartKey, eventId, ticketId}]
+            for (const [cartKey, qty] of entries) {
+                const { eventId, ticketId } = parseCartKey(cartKey);
+                if (!eventId || !ticketId) continue;
+                eventIds.add(eventId);
+                pairs.push({ cartKey, eventId, ticketId });
+            }
+
+            const eventMap = new Map();
+            for (const eid of eventIds) {
+                try {
+                    const evRes = await fetch(`http://localhost:8080/api/v1/events/${encodeURIComponent(eid)}`);
+                    if (!evRes.ok) continue;
+                    const evJson = await evRes.json();
+                    const event = evJson.event || {};
+                    eventMap.set(eid, event);
+                } catch {e}
+            }
+
+            // Fill Catalog for each cart line from the fetched events
+            for (const { cartKey, eventId, ticketId } of pairs) {
+                const ev = eventMap.get(eventId);
+                if (!ev) continue;
+                const title = ev.Pavadinimas || `Renginys ${eventId}`;
+                const tickets = ev.Bilieto_tipas || [];
+                const t = tickets.find(x => String(x.Bilieto_tipas_id) === String(ticketId));
+                let price = 0;
+                if (t && t.Kaina != null) {
+                    const s = String(t.Kaina).replace(',', '.');
+                    const f = Number.parseFloat(s);
+                    if (Number.isFinite(f)) price = f;
+                }
+                Catalog.set(cartKey, {
+                    name: `${title} – ${ticketId}`,
+                    price,
+                    eventId,
+                    ticketId
+                });
+            }
+
             renderCart();
         }
 
@@ -447,6 +503,7 @@
         document.addEventListener('DOMContentLoaded', () => {
                                         loadEvents();
                                         loadTop3Events();
+                                        loadCartFromServer(); 
                                     });
     </script>
 </body>
