@@ -13,7 +13,7 @@ from backend.redysas.ops import RedisClient
 # ----------------------
 # Cart (Redis) constants
 # ----------------------
-CART_TTL = 60 * 60 * 24 * 7  # 7 days
+CART_TTL = 30  # 30 sec
 
 def cart_key(owner_id: str) -> str:
     return f"cart:{owner_id}"
@@ -283,7 +283,7 @@ class EventApp:
                 if isinstance(event_date, str):
                 # jei data Mongo kaip string, konvertuojam į datetime
                     event_date = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
-                    
+
                 print(event_date, now)
                 not_past = event_date > now
                 
