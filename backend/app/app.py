@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 
 from backend.mongas.db import MongoDB
 from backend.redysas.ops import RedisClient
+from casa.kasandre import KasandrManager
 
 # ----------------------
 # Cart (Redis) constants
@@ -22,6 +23,7 @@ class EventApp:
     def __init__(self, port=8080):
         self.db = MongoDB()
         self.redis = RedisClient()
+        self.kasandre = KasandrManager()
         self.port = port
         self.app = Flask(__name__)
         CORS(self.app)
@@ -453,6 +455,11 @@ class EventApp:
                 mimetype="application/json"
             )
 
+
+    @app.get("/api/v1/get_questions")
+    def get_questions():
+        questions = self.kasandre.get_questions()
+        return jsonify({"ok": True, "questions": questions})
 
     # ----------------------
     # Utility methods
