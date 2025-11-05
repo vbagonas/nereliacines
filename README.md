@@ -1,6 +1,6 @@
 # nereliacines
 ### Aplinkos setup
-Kad veiktu kasandra reikia atsisiuti docker ir docker-compose
+Kad veiktu kasandra reikia atsisiuti `docker` ir `docker-compose`
 
 
 macOS
