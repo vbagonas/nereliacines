@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra_db
+    ports:
+      - "9042:9042"  # CQL native transport port
+      - "9160:9160"  # Thrift client API (optional)
+    environment:
+      - CASSANDRA_CLUSTER_NAME=UniversityCluster
+      - CASSANDRA_DC=datacenter1
+      - CASSANDRA_RACK=rack1
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+    volumes:
+      - cassandra_data:/var/lib/cassandra
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'describe cluster'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - cassandra_network
+
+volumes:
+  cassandra_data:
+    driver: local
+
+networks:
+  cassandra_network:
+    driver: bridge

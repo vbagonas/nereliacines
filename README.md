@@ -1,5 +1,8 @@
 # nereliacines
 ### Aplinkos setup
+Kad veiktu kasandra reikia atsisiuti docker ir docker-compose
+
+
 macOS
 ```
 python3 -m venv env
@@ -15,9 +18,14 @@ python3 -m venv env
 pip install -r requirements.txt
 python front/manage.py migrate
 ```
-### Projekto paleidimas
-Paleisti projekta is projekto root aplanko ```/nereliacines```.
 
+### Projekto paleidimas
+Toliau aprasytas komandas leisti is projekto root aplanko `/nereliacines`
+Paleisti **kasandros** 👁️ duomenų baze naudojant
+```
+docker-compose up -d
+```
+Paleisti front ir back dali
 ```
 python start.py
 ```
