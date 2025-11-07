@@ -5,17 +5,58 @@ from bson import Decimal128
 from decimal import Decimal, InvalidOperation
 from bson.json_util import dumps, RELAXED_JSON_OPTIONS
 import bcrypt
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
+import json
+from flask.json.provider import DefaultJSONProvider
+from flask.json.provider import DefaultJSONProvider
+from datetime import datetime
+from cassandra.util import Date
+import uuid
+from uuid import UUID
+
 
 from backend.mongas.db import MongoDB
 from backend.redysas.ops import RedisClient
+<<<<<<< Updated upstream
+=======
+from backend.casa.kasandre import CassandraRepository
 
+# ----------------------
+# Cart (Redis) constants
+# ----------------------
+CART_TTL = 30  # 30 sec
+
+def cart_key(owner_id: str) -> str:
+    return f"cart:{owner_id}"
+>>>>>>> Stashed changes
+
+class CustomJSONProvider(DefaultJSONProvider):
+    def default(self, obj):
+        if isinstance(obj, Date):
+            return str(obj)  # paprastas ir patikimas sprendimas
+        if isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        return super().default(obj)
+    
+    def dumps(self, obj, **kwargs):
+        # ensure_ascii=False leis rodyti lietuviškas raides tiesiogiai
+        kwargs.setdefault("ensure_ascii", False)
+        return super().dumps(obj, **kwargs)
+        
 class EventApp:
     def __init__(self, port=8080):
         self.db = MongoDB()
         self.redis = RedisClient()
+<<<<<<< Updated upstream
+=======
+        self.kasandre = CassandraRepository()
+>>>>>>> Stashed changes
         self.port = port
         self.app = Flask(__name__)
+        self.app.json_provider_class = CustomJSONProvider
+        self.app.json = self.app.json_provider_class(self.app)
         CORS(self.app)
         self._register_routes()
 
@@ -24,6 +65,7 @@ class EventApp:
     # --------------------------
     def _register_routes(self):
         app = self.app
+        kasandre = self.kasandre
 
         @app.get("/_health")
         def health():
@@ -378,8 +420,87 @@ class EventApp:
                 dumps(doc, json_options=RELAXED_JSON_OPTIONS),
                 mimetype="application/json"
             )
+        
+        # ----------------------
+        # INSERT klausimas
+        # ----------------------
+        @app.post("/api/v1/questions")
+        def create_question():
+            body = request.get_json(force=True)
+            event_id = body.get("event_id")
+            user_id = body.get("user_id")
+            text = body.get("text")
+            result = kasandre.insert_question(event_id, user_id, text)
+            return jsonify(result), 201
 
+        # ----------------------
+        # INSERT atsakymas
+        # ----------------------
+        @app.post("/api/v1/answers")
+        def create_answer():
+            body = request.get_json(force=True)
+            question_id = body.get("question_id")
+            user_id = body.get("user_id")
+            text = body.get("text")
+            result = kasandre.insert_answer(question_id, user_id, text)
+            return jsonify(result), 201
 
+<<<<<<< Updated upstream
+=======
+        # ----------------------
+        # GET visi klausimai
+        # ----------------------
+        @app.get("/api/v1/questions/all")
+        def get_questions_all():
+            limit = int(request.args.get("limit", 100))
+            questions = kasandre.get_questions_all(limit)
+            if not questions: 
+                return jsonify({"error": "Klausimų nerasta"}), 404
+            return jsonify(questions)
+
+        # ----------------------
+        # GET klausimai pagal renginio ID
+        # ----------------------
+        @app.get("/api/v1/questions/event/<string:event_id>")
+        def get_questions_event(event_id):
+            questions = kasandre.get_questions_by_event(event_id)
+            if not questions: 
+                return jsonify({"error": "Klausimų nerasta"}), 404
+            return jsonify(questions)
+
+        # ----------------------
+        # GET klausimai pagal datą
+        # ----------------------
+        @app.get("/api/v1/questions/date/<string:question_date>")
+        def get_questions_date(question_date):
+            dt = datetime.strptime(question_date, "%Y-%m-%d").date()
+            questions = kasandre.get_questions_by_date(dt)
+            if not questions:  
+                return jsonify({"error": "Klausimų nerasta"}), 404
+            return jsonify(questions)
+
+        # ----------------------
+        # GET atsakymai pagal klausimo ID
+        # ----------------------
+        @app.get("/api/v1/answers/<string:question_id>")
+        def get_answers(question_id):
+            question_uuid = UUID(question_id)
+            answers = kasandre.get_answers_by_question(question_uuid)
+            if not answers:  
+                return jsonify({"error": "Atsakymų nerasta"}), 404
+            return jsonify(answers)
+
+        # ----------------------
+        # GET klausimai su atsakymais (helper)
+        # ----------------------
+        @app.get("/api/v1/questions_with_answers")
+        def get_questions_with_answers():
+            limit = int(request.args.get("limit", 50))
+            questions = kasandre.get_questions_with_answers(limit)
+            return jsonify(questions)
+  
+
+>>>>>>> Stashed changes
     # ----------------------
     # Utility methods
     # ----------------------
