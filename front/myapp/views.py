@@ -8,3 +8,6 @@ def login_view(request):
 
 def register_view(request):
     return render(request, 'register.html')
+
+def questions_view(request):
+    return render(request, 'questions.html')
