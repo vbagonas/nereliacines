@@ -21,51 +21,49 @@ def create_keyspace_and_tables():
     # 1 Lentelė: visi klausimai
     session.execute("""
         CREATE TABLE IF NOT EXISTS questions_all (
-            question_date DATE,
-            created_at TIMESTAMP,
             question_id UUID,
+            question_date DATE,
             event_id TEXT,
             user_id TEXT,
             question_text TEXT,
-            PRIMARY KEY ((question_date), created_at, question_id)
-        ) WITH CLUSTERING ORDER BY (created_at DESC);
+            PRIMARY KEY ((question_id))
+        );
         """)
 
     # 2 Lentelė: klausimai pagal renginį
     session.execute("""
         CREATE TABLE IF NOT EXISTS questions_by_event (
             event_id TEXT,
-            created_at TIMESTAMP,
+            question_date DATE,
             question_id UUID,
             user_id TEXT,
             question_text TEXT,
-            PRIMARY KEY ((event_id), created_at, question_id)
-        ) WITH CLUSTERING ORDER BY (created_at DESC);
+            PRIMARY KEY ((event_id), question_date, question_id)
+        ) WITH CLUSTERING ORDER BY (question_date DESC);
     """)
 
     # 3 Lentelė: klausimai pagal datą
     session.execute("""
         CREATE TABLE IF NOT EXISTS questions_by_date (
             question_date DATE,
-            created_at TIMESTAMP,
             question_id UUID,
             event_id TEXT,
             user_id TEXT,
             question_text TEXT,
-            PRIMARY KEY ((question_date), created_at, question_id)
-        ) WITH CLUSTERING ORDER BY (created_at DESC);
+            PRIMARY KEY ((question_date), question_id)
+        ) WITH CLUSTERING ORDER BY (question_id ASC);
     """)
 
     # 4 Lentelė: atsakymai pagal klausimo ID
     session.execute("""
         CREATE TABLE IF NOT EXISTS answers_by_question (
             question_id UUID,
-            created_at TIMESTAMP,
+            answer_date DATE,
             answer_id UUID,
             user_id TEXT,
             answer_text TEXT,
-            PRIMARY KEY ((question_id), created_at, answer_id)
-        ) WITH CLUSTERING ORDER BY (created_at DESC);
+            PRIMARY KEY ((question_id), answer_date, answer_id)
+        ) WITH CLUSTERING ORDER BY (answer_date DESC);
     """)
 
     print("Keyspace ir lentelės sėkmingai sukurtos Cassandra duomenų bazėje.")
