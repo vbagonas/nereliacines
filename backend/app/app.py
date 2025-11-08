@@ -513,10 +513,10 @@ class EventApp:
             return jsonify(questions)
   
 
-    @app.get("/api/v1/get_questions")
-    def get_questions():
-        questions = self.kasandre.get_questions()
-        return jsonify({"ok": True, "questions": questions})
+        @app.get("/api/v1/get_questions")
+        def get_questions():
+            questions = self.kasandre.get_questions_all()
+            return jsonify({"ok": True, "questions": questions})
 
     # ----------------------
     # Utility methods
