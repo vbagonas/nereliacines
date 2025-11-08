@@ -17,6 +17,7 @@ from uuid import UUID
 
 from backend.mongas.db import MongoDB
 from backend.redysas.ops import RedisClient
+from backend.casa.kasandre import CassandraRepository
 
 # ----------------------
 # Cart (Redis) constants
@@ -45,7 +46,7 @@ class EventApp:
     def __init__(self, port=8080):
         self.db = MongoDB()
         self.redis = RedisClient()
-        self.kasandre = KasandrManager()
+        self.kasandre = CassandraRepository()
         self.port = port
         self.app = Flask(__name__)
         self.app.json_provider_class = CustomJSONProvider
@@ -541,4 +542,5 @@ class EventApp:
 
 if __name__=="__main__":
     app = EventApp()
+
     app.run()
