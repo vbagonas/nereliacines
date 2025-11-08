@@ -1,8 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datetime import datetime, timezone
-from bson import Decimal128
-from decimal import Decimal, InvalidOperation
 from bson.json_util import dumps, RELAXED_JSON_OPTIONS
 import bcrypt
 from datetime import datetime, timezone, date
