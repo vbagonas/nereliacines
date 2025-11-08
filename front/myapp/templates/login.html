@@ -159,10 +159,16 @@
                 const data = await response.json();
                 
                 if (response.ok) {
+                    localStorage.setItem('ownerId', document.getElementById('email').value.trim().toLowerCase());
                     messageDiv.className = 'message success';
-                    messageDiv.textContent = '✓ Login successful! Response: ' + JSON.stringify(data);
+                    messageDiv.textContent = '✓ Login successful!';
                     messageDiv.style.display = 'block';
                     document.getElementById('loginForm').reset();
+
+                    // redirect after short delay
+                    setTimeout(() => {
+                        window.location.href = "{% url 'home' %}";
+                    }, 1000);
                 } else {
                     messageDiv.className = 'message error';
                     messageDiv.textContent = '✗ Login failed: ' + (data.message || 'Unknown error');

@@ -17,9 +17,6 @@ from uuid import UUID
 
 from backend.mongas.db import MongoDB
 from backend.redysas.ops import RedisClient
-<<<<<<< Updated upstream
-=======
-from backend.casa.kasandre import CassandraRepository
 
 # ----------------------
 # Cart (Redis) constants
@@ -28,7 +25,6 @@ CART_TTL = 30  # 30 sec
 
 def cart_key(owner_id: str) -> str:
     return f"cart:{owner_id}"
->>>>>>> Stashed changes
 
 class CustomJSONProvider(DefaultJSONProvider):
     def default(self, obj):
@@ -49,10 +45,7 @@ class EventApp:
     def __init__(self, port=8080):
         self.db = MongoDB()
         self.redis = RedisClient()
-<<<<<<< Updated upstream
-=======
-        self.kasandre = CassandraRepository()
->>>>>>> Stashed changes
+        self.kasandre = KasandrManager()
         self.port = port
         self.app = Flask(__name__)
         self.app.json_provider_class = CustomJSONProvider
@@ -177,6 +170,7 @@ class EventApp:
             with self.db.client.start_session() as s:
                 with s.start_transaction():
                     cache_key = f"event:{renginys_id}"
+                    print(cache_key)
                     ev = self.redis.get_cache(cache_key)
 
                     if not ev:
@@ -194,19 +188,14 @@ class EventApp:
                             mimetype="application/json", status=404
                         )
 
-                    idx = self._resolve_ticket_index(tickets, bilieto_tipas_id, None, None)
-                    if idx is None:
-                        return app.response_class(
-                            dumps({"ok": False, "error": "Ticket type not found."}, json_options=RELAXED_JSON_OPTIONS),
-                            mimetype="application/json", status=404
-                        )
+                    print(tickets)
+                    for ticket_type in tickets:
+                        print(ticket_type.get("Bilieto_tipas_id"), bilieto_tipas_id)
+                        if ticket_type.get("Bilieto_tipas_id") == bilieto_tipas_id:
+                            chosen = ticket_type
+                            break
 
-                    chosen = tickets[idx]
-                    bilieto_tipas_id = chosen.get("Bilieto_tipas_id")
-
-                    kaina_dec128 = chosen.get("Kaina")
                     likutis = int(chosen.get("Likutis", 0))
-
                     if kiekis > likutis:
                         return app.response_class(
                             dumps({"ok": False, "error": f"Not enough tickets. Remainder: {likutis}"},
@@ -233,7 +222,7 @@ class EventApp:
                             "renginys_id": renginys_id,
                             "Bilieto_tipas_id": bilieto_tipas_id,
                             "Kiekis": kiekis,
-                            "Kaina": kaina_dec128
+                            "Kaina": chosen.get("Kaina")
                         }]
                     }
                     ins = self.db.uzsakymai.insert_one(order, session=s)
@@ -310,7 +299,7 @@ class EventApp:
             events = list(self.db.renginiai.find({}))
 
             valid_ids = []
-            now = datetime.now(timezone.utc)
+            now = datetime.now()
 
             for ev in events:
             # Tikrinam ar renginys turi bilietų likutį > 0
@@ -322,6 +311,7 @@ class EventApp:
                 # jei data Mongo kaip string, konvertuojam į datetime
                     event_date = datetime.fromisoformat(event_date.replace("Z", "+00:00"))
 
+                print(event_date, now)
                 not_past = event_date > now
                 
                 if has_available and not_past:
@@ -342,7 +332,76 @@ class EventApp:
                 mimetype="application/json"
             )
 
+        # ----------------------
+        # Cart API (Redis Hash)
+        # ----------------------
+        @app.get("/api/v1/cart")
+        def cart_get():
+            owner_id = (request.args.get("owner_id") or "").strip()
+            if not owner_id:
+                return jsonify({"ok": False, "error": "owner_id is required"}), 400
 
+            items = self.redis.client.hgetall(cart_key(owner_id)) or {}
+            return jsonify({"ok": True, "items": items})
+
+        @app.post("/api/v1/cart")
+        def cart_add():
+            """
+            Body: { "owner_id": "...", "product_id": "...", "qty": 1 }
+            Increments qty (creates if absent). Removes if result <= 0.
+            """
+            data = request.get_json(force=True)
+            owner_id = (data.get("owner_id") or "").strip()
+            product_id = str(data.get("product_id") or "").strip()
+            qty = int(data.get("qty", 1))
+
+            if not owner_id or not product_id or qty == 0:
+                return jsonify({"ok": False, "error": "owner_id, product_id and non-zero qty are required"}), 400
+
+            key = cart_key(owner_id)
+            current = int(self.redis.client.hget(key, product_id) or 0) + qty
+            if current <= 0:
+                self.redis.client.hdel(key, product_id)
+            else:
+                self.redis.client.hset(key, product_id, current)
+            self.redis.client.expire(key, CART_TTL)
+
+            return jsonify({"ok": True, "items": self.redis.client.hgetall(key) or {}})
+
+        @app.put("/api/v1/cart")
+        def cart_set():
+            """
+            Body: { "owner_id": "...", "product_id": "...", "qty": 3 }
+            Sets absolute quantity (deletes if qty <= 0).
+            """
+            data = request.get_json(force=True)
+            owner_id = (data.get("owner_id") or "").strip()
+            product_id = str(data.get("product_id") or "").strip()
+            qty = int(data.get("qty", 0))
+
+            if not owner_id or not product_id:
+                return jsonify({"ok": False, "error": "owner_id and product_id are required"}), 400
+
+            key = cart_key(owner_id)
+            if qty <= 0:
+                self.redis.client.hdel(key, product_id)
+            else:
+                self.redis.client.hset(key, product_id, qty)
+            self.redis.client.expire(key, CART_TTL)
+
+            return jsonify({"ok": True, "items": self.redis.client.hgetall(key) or {}})
+
+        @app.delete("/api/v1/cart")
+        def cart_clear():
+            """
+            Query: ?owner_id=...
+            """
+            owner_id = (request.args.get("owner_id") or "").strip()
+            if not owner_id:
+                return jsonify({"ok": False, "error": "owner_id is required"}), 400
+
+            self.redis.client.delete(cart_key(owner_id))
+            return jsonify({"ok": True})
 
         # ----------------------
         # Analytics endpoints
@@ -445,51 +504,6 @@ class EventApp:
             result = kasandre.insert_answer(question_id, user_id, text)
             return jsonify(result), 201
 
-<<<<<<< Updated upstream
-=======
-        # ----------------------
-        # GET visi klausimai
-        # ----------------------
-        @app.get("/api/v1/questions/all")
-        def get_questions_all():
-            limit = int(request.args.get("limit", 100))
-            questions = kasandre.get_questions_all(limit)
-            if not questions: 
-                return jsonify({"error": "Klausimų nerasta"}), 404
-            return jsonify(questions)
-
-        # ----------------------
-        # GET klausimai pagal renginio ID
-        # ----------------------
-        @app.get("/api/v1/questions/event/<string:event_id>")
-        def get_questions_event(event_id):
-            questions = kasandre.get_questions_by_event(event_id)
-            if not questions: 
-                return jsonify({"error": "Klausimų nerasta"}), 404
-            return jsonify(questions)
-
-        # ----------------------
-        # GET klausimai pagal datą
-        # ----------------------
-        @app.get("/api/v1/questions/date/<string:question_date>")
-        def get_questions_date(question_date):
-            dt = datetime.strptime(question_date, "%Y-%m-%d").date()
-            questions = kasandre.get_questions_by_date(dt)
-            if not questions:  
-                return jsonify({"error": "Klausimų nerasta"}), 404
-            return jsonify(questions)
-
-        # ----------------------
-        # GET atsakymai pagal klausimo ID
-        # ----------------------
-        @app.get("/api/v1/answers/<string:question_id>")
-        def get_answers(question_id):
-            question_uuid = UUID(question_id)
-            answers = kasandre.get_answers_by_question(question_uuid)
-            if not answers:  
-                return jsonify({"error": "Atsakymų nerasta"}), 404
-            return jsonify(answers)
-
         # ----------------------
         # GET klausimai su atsakymais (helper)
         # ----------------------
@@ -500,7 +514,11 @@ class EventApp:
             return jsonify(questions)
   
 
->>>>>>> Stashed changes
+    @app.get("/api/v1/get_questions")
+    def get_questions():
+        questions = self.kasandre.get_questions()
+        return jsonify({"ok": True, "questions": questions})
+
     # ----------------------
     # Utility methods
     # ----------------------
@@ -514,31 +532,6 @@ class EventApp:
     def verify_password(plain, hashed):
         return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
-    @staticmethod
-    def _resolve_ticket_index(tickets, bilieto_tipas_id, kaina_hint, idx_hint):
-        if bilieto_tipas_id:
-            for i, t in enumerate(tickets):
-                if t.get("Bilieto_tipas_id") == bilieto_tipas_id:
-                    return i
-        if kaina_hint is not None:
-            try:
-                hint_dec = Decimal(str(kaina_hint))
-                for i, t in enumerate(tickets):
-                    k = t.get("Kaina")
-                    if isinstance(k, Decimal128) and k.to_decimal() == hint_dec:
-                        return i
-            except (InvalidOperation, ValueError):
-                pass
-        if idx_hint is not None:
-            try:
-                idx_hint = int(idx_hint)
-                if 0 <= idx_hint < len(tickets):
-                    return idx_hint
-            except (TypeError, ValueError):
-                pass
-        if len(tickets) == 1:
-            return 0
-        return None
 
     # ----------------------
     # Run

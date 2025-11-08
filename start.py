@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 processes = []
 
@@ -7,15 +8,17 @@ DJANGO_PORT = 8000
 
 
 try:
+    python_exec = sys.executable
+
     # Start Django
     django_proc = subprocess.Popen(
-        ["python", "front/manage.py", "runserver", "0.0.0.0:8000"]
+        [python_exec, "front/manage.py", "runserver", f"0.0.0.0:{DJANGO_PORT}"]
     )
     processes.append(django_proc)
 
     # Start Flask
     flask_proc = subprocess.Popen(
-        ["python", "-m", "backend.app.app"]
+        [python_exec, "-m", "backend.app.app"]
     )
     processes.append(flask_proc)
 
