@@ -25,6 +25,12 @@ Paleisti **kasandros** 👁️ duomenų baze naudojant
 ```
 docker-compose up -d
 ```
+
+Tada pirmam kartui paleidziame sita, kad sukurtume lenteles (turetu reiketi sukurti tik pirma karta pasijungus, kai lenteliu dar nera)
+```
+python init-scripts/init_cassandra.py
+```
+
 Paleisti front ir back dali
 ```
 python start.py
