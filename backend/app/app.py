@@ -49,7 +49,7 @@ class EventApp:
         self.app = Flask(__name__)
         self.app.json_provider_class = CustomJSONProvider
         self.app.json = self.app.json_provider_class(self.app)
-        CORS(self.app)
+        CORS(self.app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=False)
         self._register_routes()
 
     # --------------------------
@@ -517,6 +517,35 @@ class EventApp:
         def get_questions():
             questions = self.kasandre.get_questions_all()
             return jsonify({"ok": True, "questions": questions})
+        
+
+        @app.get("/api/v1/get_questions_by_event/<event_id>")
+        def get_questions_by_event(event_id):
+            questions = kasandre.get_questions_by_event(event_id)
+            return jsonify({"ok": True, "questions": questions})
+
+        @app.get("/api/v1/get_questions_by_date")
+        def get_questions_by_date():
+            # expects ?date=YYYY-MM-DD
+            date_str = request.args.get("date")
+            if not date_str:
+                return jsonify({"ok": False, "error": "Missing query param ?date=YYYY-MM-DD"}), 400
+            try:
+                qdate = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify({"ok": False, "error": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+            questions = kasandre.get_questions_by_date(qdate)
+            return jsonify({"ok": True, "questions": questions})
+
+
+        # ---- Answers (simple) ----
+
+        @app.get("/api/v1/get_answers_by_question/<question_id>")
+        def get_answers_by_question(question_id):
+            answers = kasandre.get_answers_by_question(question_id)
+            return jsonify({"ok": True, "answers": answers})
+
 
     # ----------------------
     # Utility methods
