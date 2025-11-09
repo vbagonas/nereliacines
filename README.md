@@ -30,6 +30,22 @@ Tada pirmam kartui paleidziame sita, kad sukurtume lenteles (turetu reiketi suku
 ```
 python init-scripts/init_cassandra.py
 ```
+Jeigu jau buvot pasileide `init_cassandra.py` faila, tuomet i terminala rasykit po viena eilute kas apacioj parasyta
+```
+docker exec -it cassandra_db cqlsh
+```
+Jums turejo terminale atsirasti `cqlsh` eilute, toliau runninkit sita:
+```
+DROP KEYSPACE IF EXISTS event_app;
+```
+Keyspace turejo buti istrintas. Toliau vel pasileiskit sita:
+```
+python init-scripts/init_cassandra.py
+```
+Ir kad insertinti duomenis pasileiskit terminale sita:
+```
+python init-scripts/put_data_to_tables.py
+```
 
 Paleisti front ir back dali
 ```

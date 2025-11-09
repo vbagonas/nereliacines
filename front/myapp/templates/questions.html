@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Klausimai ir Atsakymai</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <style>
+    body{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif}
+    .navbar{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:0!important;min-height:45px!important}
+    .navbar .container{padding:0 10px!important}
+    .navbar-brand{padding:0!important;margin:0 8px!important;line-height:45px;font-size:1.2rem}
+    .container{margin-top:15px!important}
+    .card{border:none;border-radius:10px;box-shadow:0 8px 15px rgba(0,0,0,.15);transition:transform .2s}
+    .card:hover{transform:translateY(-5px)}
+    .card-title{color:#333;font-weight:600}
+    .answer-card{background:#f8f9fa;border-left:3px solid #667eea;margin-left:20px;margin-top:10px}
+    .question-card{background:#fff}
+    .answer-form{margin-left:20px;margin-top:10px}
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg bg-light">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="#">FORUMAS</a>
+  </div>
+</nav>
+
+<div class="container mt-5">
+  <!-- Create question -->
+  <div class="card p-4 mb-4">
+    <h4 class="mb-3">Užduoti klausimą</h4>
+    <form id="question-form">
+      <div class="mb-3">
+        <label for="event-select" class="form-label">Renginys</label>
+        <!-- VALUE = event_id, LABEL = event name -->
+        <select class="form-select" id="event-select" required>
+          <option value="">Pasirinkite renginį...</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="question-text" class="form-label">Klausimas</label>
+        <textarea class="form-control" id="question-text" rows="3" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-send me-1"></i> Paskelbti klausimą
+      </button>
+    </form>
+  </div>
+
+  <!-- Title sits here (separate from filters) -->
+  <h2 class="text-center text-white my-4">Klausimai ir atsakymai</h2>
+
+  <!-- Filters under the title -->
+  <div class="row g-2 align-items-end mb-3">
+    <div class="col-12 col-md-auto">
+      <label for="filter-event" class="text-white mb-1">Filtruoti pagal renginį</label>
+      <!-- VALUE = event_id, LABEL = event name -->
+      <select id="filter-event" class="form-select form-select-sm">
+        <option value="">Visi renginiai</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-auto">
+      <label for="filter-date" class="text-white mb-1">Filtruoti pagal datą</label>
+      <input type="date" id="filter-date" class="form-control form-control-sm w-auto">
+    </div>
+    <div class="col-12 col-md-auto">
+      <button id="clear-filters" class="btn btn-outline-light btn-sm mt-3 mt-md-0">
+        <i class="bi bi-x-circle"></i> Išvalyti filtrus
+      </button>
+    </div>
+  </div>
+
+  <!-- Results block -->
+  <div id="questionsContainer" class="mt-3">
+    <p class="text-center text-white fs-6">Kraunami klausimai...</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+  const API_BASE = 'http://localhost:8080/api/v1';
+
+  // Simple API routes from app.py
+  const GET_ALL_URL       = `${API_BASE}/get_questions`;               // {ok, questions}
+  const GET_BY_DATE_URL   = `${API_BASE}/get_questions_by_date`;       // ?date=YYYY-MM-DD
+  const GET_BY_EVENT_URL  = `${API_BASE}/get_questions_by_event`;      // /<event_id>
+  const GET_ANSWERS_URL   = `${API_BASE}/get_answers_by_question`;     // /<question_id>
+  const POST_QUESTION_URL = `${API_BASE}/questions`;
+  const POST_ANSWER_URL   = `${API_BASE}/answers`;
+
+  // Events API (already existing)
+  const EVENTS_URL = `${API_BASE}/events`;
+
+  // Maps to keep name <-> id and a cache for labels
+  const eventIdToName = new Map();
+  const eventNameToId = new Map();
+
+  function escapeHtml(s=''){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
+  function getUserId(){
+    const email = localStorage.getItem('ownerId');
+    if(!email){alert('User not logged in. Please log in again.'); window.location.href='/login'; throw new Error('User not logged in')}
+    return email.trim().toLowerCase();
+  }
+
+  // Load events and populate BOTH selects (create + filter) with value=id, label=name
+  async function loadEventOptions(){
+    const createSelect = document.getElementById('event-select');
+    const filterSelect = document.getElementById('filter-event');
+    try{
+      const listRes = await fetch(EVENTS_URL);
+      const listData = await listRes.json();
+      const ids = (listData.event_ids||[]).slice();
+
+      const items = [];
+      for(const id of ids){
+        try{
+          const evRes = await fetch(`${EVENTS_URL}/${id}`);
+          const evData = await evRes.json();
+          const ev = evData.event || {};
+          const name = ev.Pavadinimas || ev.name || ev.title || `[${id}]`;
+          items.push({id,name});
+          eventIdToName.set(id,name);
+          eventNameToId.set(name,id);
+        }catch(_){
+          const name = `[${id}]`;
+          items.push({id,name});
+          eventIdToName.set(id,name);
+          eventNameToId.set(name,id);
+        }
+      }
+      items.sort((a,b)=>a.name.localeCompare(b.name,'lt'));
+
+      items.forEach(({id,name})=>{
+        const o=document.createElement('option'); o.value=id; o.textContent=name; createSelect.appendChild(o);
+      });
+      items.forEach(({id,name})=>{
+        const o=document.createElement('option'); o.value=id; o.textContent=name; filterSelect.appendChild(o);
+      });
+    }catch(e){ console.error('Failed to load events:',e); }
+  }
+
+  // fetch a label for an ID (used when rendering)
+  async function getEventName(id){
+    if(!id) return '';
+    if(eventIdToName.has(id)) return eventIdToName.get(id);
+    try{
+      const r = await fetch(`${EVENTS_URL}/${id}`);
+      const j = await r.json();
+      const ev = j.event || {};
+      const name = ev.Pavadinimas || ev.name || ev.title || '';
+      eventIdToName.set(id,name);
+      eventNameToId.set(name,id);
+      return name;
+    }catch{ eventIdToName.set(id,''); return ''; }
+  }
+
+  // answers for every question
+  async function attachAnswers(questions){
+    await Promise.all(questions.map(async q=>{
+      try{
+        const r = await fetch(`${GET_ANSWERS_URL}/${q.question_id}`);
+        const p = await r.json();
+        q.answers = p.answers || [];
+      }catch(e){ console.error('answers fetch failed',q.question_id,e); q.answers=[]; }
+    }));
+  }
+
+  // optional client-side date filter (used after fetching by event)
+  function filterByDateLocal(questions,dateStr){
+    if(!dateStr) return questions;
+    return questions.filter(q=>{
+      const d1=(q.question_date||'').slice(0,10);
+      const d2=(q.created_at||'').slice(0,10);
+      const day=d1||d2;
+      return day===dateStr;
+    });
+  }
+
+  // Load questions with optional filters
+  async function loadQuestions(dateStr, eventId){
+    try{
+      let questions=[];
+      if(eventId){
+        const r = await fetch(`${GET_BY_EVENT_URL}/${encodeURIComponent(eventId)}`);
+        if(!r.ok) throw new Error('Failed to fetch questions by event');
+        const payload = await r.json();
+        questions = payload.questions || [];
+        questions = filterByDateLocal(questions,dateStr); // refine by date if given
+      }else if(dateStr && dateStr.length===10){
+        const r = await fetch(`${GET_BY_DATE_URL}?date=${encodeURIComponent(dateStr)}`);
+        if(!r.ok) throw new Error('Failed to fetch questions by date');
+        const payload = await r.json();
+        questions = payload.questions || [];
+      }else{
+        const r = await fetch(GET_ALL_URL);
+        if(!r.ok) throw new Error('Failed to fetch all questions');
+        const payload = await r.json();
+        questions = payload.questions || [];
+      }
+
+      // warm event labels
+      const uniqueIds=[...new Set(questions.map(q=>q.event_id).filter(Boolean))];
+      await Promise.all(uniqueIds.map(id=>getEventName(id)));
+
+      await attachAnswers(questions);
+      renderQuestions(questions);
+    }catch(err){
+      console.error('Error fetching questions:',err);
+      document.getElementById('questionsContainer').innerHTML =
+        '<p class="text-center text-white fs-5">Nepavyko įkelti klausimų.</p>';
+    }
+  }
+
+  function renderQuestions(questions){
+    const container=document.getElementById('questionsContainer');
+    container.innerHTML='';
+    if(!questions||questions.length===0){
+      container.innerHTML='<p class="text-center text-white fs-5">Klausimų nėra.</p>';
+      return;
+    }
+
+    questions.forEach(q=>{
+      const card=document.createElement('div');
+      card.className='card question-card p-3 mb-3';
+
+      const questionDate=new Date(q.created_at||q.question_date).toLocaleString('lt-LT',{
+        year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
+      });
+
+      const evName=eventIdToName.get(q.event_id)||'';
+      const eventLabel=evName?`Renginys: ${q.event_id} — <em>${escapeHtml(evName)}</em>`:`Renginys: ${q.event_id}`;
+
+      let answersHtml='';
+      if(q.answers&&q.answers.length>0){
+        answersHtml=q.answers.map(a=>{
+          const ad=new Date(a.created_at).toLocaleString('lt-LT',{
+            year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
+          });
+          return `
+            <div class="card answer-card p-2 mb-2">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <p class="mb-1">${escapeHtml(a.text)}</p>
+                  <small class="text-muted">
+                    <i class="bi bi-person"></i> ${escapeHtml(a.user_id)} •
+                    <i class="bi bi-clock"></i> ${ad}
+                  </small>
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+      }
+
+      card.innerHTML=`
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="card-title mb-0">${escapeHtml(q.text)}</h5>
+          </div>
+          <p class="text-muted mb-2">
+            <small>
+              <i class="bi bi-person"></i> ${escapeHtml(q.user_id)} • 
+              <i class="bi bi-calendar"></i> ${questionDate} •
+              <i class="bi bi-tag"></i> ${eventLabel}
+            </small>
+          </p>
+          ${answersHtml?`<div class="mt-3"><h6 class="fw-semibold">Atsakymai (${q.answers.length}):</h6>${answersHtml}</div>`:''}
+          <div class="answer-form mt-3">
+            <form onsubmit="submitAnswer(event,'${q.question_id}')">
+              <div class="input-group">
+                <input type="text" class="form-control" placeholder="Rašyti atsakymą..." required>
+                <button class="btn btn-outline-primary" type="submit">
+                  <i class="bi bi-reply"></i> Atsakyti
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>`;
+      container.appendChild(card);
+    });
+  }
+
+  // Create question
+  document.getElementById('question-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const selectEl=document.getElementById('event-select');
+    let eventId=selectEl.value;
+    if(!eventId || !/EV/i.test(eventId)){
+      eventId = eventNameToId.get(eventId) || '';
+    }
+    const text=document.getElementById('question-text').value;
+    const btn=e.target.querySelector('button[type="submit"]');
+
+    try{
+      const userId=getUserId();
+      if(!eventId) throw new Error('Nepasirinktas renginys');
+
+      btn.disabled=true;
+      btn.innerHTML='<span class="spinner-border spinner-border-sm me-1"></span> Siunčiama...';
+
+      const r=await fetch(POST_QUESTION_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({event_id:eventId,user_id:userId,text})
+      });
+      const data=await r.json();
+      if(!r.ok || data.ok===false) throw new Error(data.error || 'Nepavyko paskelbti klausimo');
+
+      document.getElementById('question-form').reset();
+
+      const d=document.getElementById('filter-date').value || undefined;
+      const eId=document.getElementById('filter-event').value || undefined;
+      await loadQuestions(d,eId);
+    }catch(err){
+      console.error('Error posting question:',err);
+      alert('Klaida: '+err.message);
+    }finally{
+      btn.disabled=false;
+      btn.innerHTML='<i class="bi bi-send me-1"></i> Paskelbti klausimą';
+    }
+  });
+
+  // Create answer
+  async function submitAnswer(event,questionId){
+    event.preventDefault();
+    const form=event.target;
+    const input=form.querySelector('input');
+    const text=input.value;
+    const btn=form.querySelector('button');
+    try{
+      const userId=getUserId();
+      btn.disabled=true;
+      btn.innerHTML='<span class="spinner-border spinner-border-sm"></span>';
+      const r=await fetch(POST_ANSWER_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({question_id:questionId,user_id:userId,text})
+      });
+      const data=await r.json();
+      if(!r.ok || data.ok===false) throw new Error(data.error || 'Nepavyko paskelbti atsakymo');
+      form.reset();
+      const d=document.getElementById('filter-date').value || undefined;
+      const eId=document.getElementById('filter-event').value || undefined;
+      await loadQuestions(d,eId);
+    }catch(err){
+      console.error('Error posting answer:',err);
+      alert('Klaida: '+err.message);
+    }finally{
+      btn.disabled=false;
+      btn.innerHTML='<i class="bi bi-reply"></i> Atsakyti';
+    }
+  }
+
+  // Filter listeners
+  document.getElementById('filter-date').addEventListener('change', ()=>{
+    const d=document.getElementById('filter-date').value || undefined;
+    const e=document.getElementById('filter-event').value || undefined;
+    loadQuestions(d,e);
+  });
+  document.getElementById('filter-event').addEventListener('change', ()=>{
+    const d=document.getElementById('filter-date').value || undefined;
+    const e=document.getElementById('filter-event').value || undefined;
+    loadQuestions(d,e);
+  });
+  document.getElementById('clear-filters').addEventListener('click', ()=>{
+    document.getElementById('filter-date').value='';
+    document.getElementById('filter-event').value='';
+    loadQuestions();
+  });
+
+  // Init
+  document.addEventListener('DOMContentLoaded', ()=>{
+    loadEventOptions();
+    loadQuestions(); // default: all questions + answers
+  });
+</script>
+</body>
+</html>

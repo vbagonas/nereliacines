@@ -73,9 +73,13 @@
             <a class="navbar-brand fw-bold" href="#">Event Manager</a>
 
             <div class="ms-auto d-flex align-items-center">
-                <div class="dropdown me-3">
-                    <button class="btn btn-outline-success dropdown-toggle" type="button" id="cartDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-cart"></i>
+            <a href="/questions" class="btn btn-outline-primary btn-sm me-3">
+                <i class="bi bi-question-circle me-1"></i> Klausimai
+            </a>
+            
+            <div class="dropdown me-3">
+                <button class="btn btn-outline-success dropdown-toggle" type="button" id="cartDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-cart"></i>
                         <span id="cart-count" class="badge bg-secondary ms-1">0</span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end p-3 cart-dropdown" aria-labelledby="cartDropdown">
@@ -97,7 +101,7 @@
         </div>
     </nav>
 
-    <div class="container mt-5">
+    <div class="container mt-5 mb-5">
         <h1 class="text-center text-white mb-4">Top 3 renginiai</h1>
         <div id="top3Container" class="row g-4 justify-content-center">
             <p class="text-center text-white fs-6">Kraunami top renginiai..</p>
@@ -174,7 +178,7 @@
                     card.innerHTML = `
                         <div class="card p-3 h-100 shadow-sm">
                             <div class="card-body">
-                                <h5 class="card-title fw-bold mb-2">${event.Pavadinimas}</h5>
+                                <h5 class="card-title fw-bold mb-4">${event.Pavadinimas}</h5>
                                 <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
                                 <p class="text-muted mb-1"><strong>Adresas:</strong> ${event.Adresas}</p>
                                 <p class="text-muted mb-1"><strong>Vieta:</strong> ${event.Vieta}</p>
@@ -489,7 +493,7 @@
                 card.innerHTML = `
                     <div class="card p-3 h-100 shadow-sm">
                         <div class="card-body text-center">
-                            <h5 class="card-title fw-bold mb-2">${event.Pavadinimas}</h5>
+                            <h5 class="card-title fw-bold mb-4">${event.Pavadinimas}</h5>
                             <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
                             <p class="text-muted mb-1"><strong>Data:</strong> ${new Date(event.Data).toLocaleDateString('lt-LT')}</p>
                         </div>
