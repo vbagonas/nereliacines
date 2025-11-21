@@ -1,10 +1,10 @@
 import pandas as pd
 from cassandra.cluster import Cluster
 from uuid import uuid4
-from datetime import date, datetime  # ✅ Added datetime import
+from datetime import date
 
 KEYSPACE = "event_app"
-EXCEL_FILE = "Cassandrai.xlsx"
+EXCEL_FILE = "Cassandrai.xlsx"   # <- CHANGE to your filename
 
 def main():
     # Connect to Cassandra
@@ -22,45 +22,42 @@ def main():
     question_uuid_map = {}  # maps EVxxxx → generated UUID
 
     for index, row in df_questions.iterrows():
-        q_raw_id = row["question_id"]
-        event_id = row["rengiinio_id"]
+        q_raw_id = row["question_id"]              # EV0003
+        event_id = row["rengiinio_id"]              # EV0003 (same value?)
         user_id  = row["user_id"]
         q_text   = row["question"]
-        q_uuid   = uuid4()
+        q_uuid   = uuid4()                         # Cassandra PK
 
         question_uuid_map[q_raw_id] = q_uuid
 
         today = date.today()
-        now = datetime.utcnow()  # ✅ Added this line
 
         # Insert into questions_all
-        # ✅ Added created_at field and reordered columns
         session.execute("""
-            INSERT INTO questions_all (question_date, created_at, question_id, event_id, user_id, question_text)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (today, now, q_uuid, event_id, user_id, q_text))
+            INSERT INTO questions_all (question_id, question_date, event_id, user_id, question_text)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (q_uuid, today, event_id, user_id, q_text))
 
         # Insert into questions_by_event
-        # ✅ Added created_at field and reordered columns
         session.execute("""
-            INSERT INTO questions_by_event (event_id, created_at, question_id, user_id, question_text)
+            INSERT INTO questions_by_event (event_id, question_date, question_id, user_id, question_text)
             VALUES (%s, %s, %s, %s, %s)
-        """, (event_id, now, q_uuid, user_id, q_text))
+        """, (event_id, today, q_uuid, user_id, q_text))
 
         # Insert into questions_by_date
-        # ✅ Added created_at field and reordered columns
         session.execute("""
-            INSERT INTO questions_by_date (question_date, created_at, question_id, event_id, user_id, question_text)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (today, now, q_uuid, event_id, user_id, q_text))
+            INSERT INTO questions_by_date (question_date, question_id, event_id, user_id, question_text)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (today, q_uuid, event_id, user_id, q_text))
 
     print("✅ Questions inserted successfully.")
+
 
     # ------------------------------
     #  INSERT ANSWERS
     # ------------------------------
     for index, row in df_answers.iterrows():
-        q_raw_id = row["klausimo_id"]
+        q_raw_id = row["klausimo_id"]        # Excel value (1,2,3...) or EV0001?
         user_id  = row["user_id"]
         a_text   = row["answer"]
 
@@ -72,17 +69,17 @@ def main():
             continue
 
         a_uuid = uuid4()
-        now = datetime.utcnow()  # ✅ Changed from date.today() to datetime.utcnow()
+        today = date.today()
 
-        # ✅ Changed answer_date to created_at
         session.execute("""
-            INSERT INTO answers_by_question (question_id, created_at, answer_id, user_id, answer_text)
+            INSERT INTO answers_by_question (question_id, answer_date, answer_id, user_id, answer_text)
             VALUES (%s, %s, %s, %s, %s)
-        """, (q_uuid, now, a_uuid, user_id, a_text))
+        """, (q_uuid, today, a_uuid, user_id, a_text))
 
     print("✅ Answers inserted successfully.")
 
     cluster.shutdown()
+
 
 if __name__ == "__main__":
     main()
