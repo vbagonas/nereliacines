@@ -12,6 +12,7 @@ class MongoDB():
         self.vartotojai = self.db["Vartotojai"]
         self.renginiai = self.db["Renginiai"]
         self.uzsakymai = self.db["Užsakymai"] 
+        print("✅ Connected to MongoDB database")
 
     def connect(self):
         with open(PROJECT_ROOT/'creds.yml', 'r') as f:

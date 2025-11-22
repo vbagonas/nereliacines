@@ -12,6 +12,7 @@ class RedisClient:
         self.port = 18424
         self.ssl = ssl
         self.client = self.connect()
+        print("✅ Connected to Redis server")
 
     def connect(self):
         with open(PROJECT_ROOT/'creds.yml', 'r') as f:
