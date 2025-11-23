@@ -7,7 +7,7 @@ questions_bp = Blueprint('questions', __name__, url_prefix='/api/v1')
 # ----------------------
 # INSERT klausimas
 # ----------------------
-@questions_bp.post("/api/v1/questions")
+@questions_bp.post("/questions")
 def create_question():
     body = request.get_json(force=True)
     event_id = body.get("event_id")
@@ -19,7 +19,7 @@ def create_question():
 # ----------------------
 # INSERT atsakymas
 # ----------------------
-@questions_bp.post("/api/v1/answers")
+@questions_bp.post("/answers")
 def create_answer():
     body = request.get_json(force=True)
     question_id = body.get("question_id")
@@ -31,25 +31,25 @@ def create_answer():
 # ----------------------
 # GET klausimai su atsakymais (helper)
 # ----------------------
-@questions_bp.get("/api/v1/questions_with_answers")
+@questions_bp.get("/questions_with_answers")
 def get_questions_with_answers():
     limit = int(request.args.get("limit", 50))
     questions = cassandra.get_questions_with_answers(limit)
     return jsonify(questions)
 
 
-@questions_bp.get("/api/v1/get_questions")
+@questions_bp.get("/get_questions")
 def get_questions():
     questions = cassandra.get_questions_all()
     return jsonify({"ok": True, "questions": questions})
 
 
-@questions_bp.get("/api/v1/get_questions_by_event/<event_id>")
+@questions_bp.get("/get_questions_by_event/<event_id>")
 def get_questions_by_event(event_id):
     questions = cassandra.get_questions_by_event(event_id)
     return jsonify({"ok": True, "questions": questions})
 
-@questions_bp.get("/api/v1/get_questions_by_date")
+@questions_bp.get("/get_questions_by_date")
 def get_questions_by_date():
     # expects ?date=YYYY-MM-DD
     date_str = request.args.get("date")
@@ -66,7 +66,7 @@ def get_questions_by_date():
 
 # ---- Answers (simple) ----
 
-@questions_bp.get("/api/v1/get_answers_by_question/<question_id>")
+@questions_bp.get("/get_answers_by_question/<question_id>")
 def get_answers_by_question(question_id):
     answers = cassandra.get_answers_by_question(question_id)
     return jsonify({"ok": True, "answers": answers})
