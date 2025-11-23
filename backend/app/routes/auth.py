@@ -19,7 +19,7 @@ def login():
     return jsonify({"ok": True, "user": public})
 
 
-@auth_bp.post("/api/v1/register")
+@auth_bp.post("/register")
 def register_user():
     payload = request.get_json(force=True)
     email = payload.get("email")
