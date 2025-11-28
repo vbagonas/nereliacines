@@ -37,6 +37,16 @@ class GraphDB():
         return self._run_query(query, {'event_id': event_id, 'event_date': event_date})
 
 
+    def has_purchase_history(self, user_id):
+        """Check if user has any purchase history"""
+        query = """
+            MATCH (u:User {id: $user_id})-[:PURCHASED]->(:Event)    
+            RETURN count(*) as purchase_count
+        """
+        result = self._run_query(query, {'user_id': user_id})
+        return result[0]['purchase_count'] > 0 if result else False
+
+
     def add_purchase(self, user_id, event_id, event_date=None):
         """Record purchase and optionally set event date"""
         query = """
@@ -78,7 +88,6 @@ class GraphDB():
                 rec.renginio_trukme as duration,
                 rec.bilieto_tipai as ticket_types,
                 rec.organizatoriai as organizers,
-                similarity_score
         """
         return self._run_query(query, {'user_id': user_id})
     
@@ -106,7 +115,6 @@ class GraphDB():
                 rec.renginio_trukme as duration,
                 rec.bilieto_tipai as ticket_types,
                 rec.organizatoriai as organizers,
-                similarity_score
         """
         return self._run_query(query, {
             'user_id': user_id, 
