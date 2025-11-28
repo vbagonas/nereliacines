@@ -55,37 +55,59 @@ class GraphDB():
         })
 
 
-    def recommend_collaborative(self, user_id, limit=5):
+    def recommend_collaborative(self, user_id):
         """All recommended events based on similar users"""
+        print(user_id)
+
         query = """
-            MATCH (u:User {id: $user_id})-[:PURCHASED]->(e:Event)
-            MATCH (e)<-[:PURCHASED]-(similar:User)-[:PURCHASED]->(rec:Event)
-            WHERE NOT (u)-[:PURCHASED]->(rec)
-            RETURN rec.id as event_id, 
-                rec.date as event_date,
-                count(DISTINCT similar) as score
-            ORDER BY score DESC
-            LIMIT $limit
+            MATCH (u:User {id: $user_id})-[:BOUGHT]->(e:Event)
+            MATCH (other:User)-[:BOUGHT]->(e)
+            MATCH (other)-[:BOUGHT]->(rec:Event)
+            WHERE NOT (u)-[:BOUGHT]->(rec)
+            WITH rec, COUNT(DISTINCT other) as similarity_score
+            ORDER BY similarity_score DESC
+            LIMIT 5
+            RETURN rec.id as event_id,
+                rec.data as event_date,
+                rec.pavadinimas as title,
+                rec.tipas as type,
+                rec.adresas as address,
+                rec.miestas as city,
+                rec.vieta as venue,
+                rec.amziaus_cenzas as age_restriction,
+                rec.renginio_trukme as duration,
+                rec.bilieto_tipai as ticket_types,
+                rec.organizatoriai as organizers,
+                similarity_score
         """
-        return self._run_query(query, {'user_id': user_id, 'limit': limit})
+        return self._run_query(query, {'user_id': user_id})
     
 
-    def recommend_collaborative_upcoming(self, user_id, limit=5, months_ahead=2):
+    def recommend_collaborative_upcoming(self, user_id):
         """Upcoming recommended events only"""
         query = """
-        MATCH (u:User {id: $user_id})-[:PURCHASED]->(e:Event)
-        MATCH (e)<-[:PURCHASED]-(similar:User)-[:PURCHASED]->(rec:Event)
-        WHERE NOT (u)-[:PURCHASED]->(rec)
-          AND rec.date >= datetime() 
-          AND rec.date <= datetime() + duration({months: $months_ahead})
-        RETURN rec.id as event_id, 
-               rec.date as event_date,
-               count(DISTINCT similar) as score
-        ORDER BY score DESC
-        LIMIT $limit
+            MATCH (u:User {id: $user_id})-[:BOUGHT]->(e:Event)
+            MATCH (other:User)-[:BOUGHT]->(e)
+            MATCH (other)-[:BOUGHT]->(rec:Event)
+            WHERE NOT (u)-[:BOUGHT]->(rec)
+            AND datetime(rec.data) >= datetime()
+            AND datetime(rec.data) <= datetime() + duration({months: 2})
+            WITH rec, COUNT(DISTINCT other) as similarity_score
+            ORDER BY similarity_score DESC
+            LIMIT 5
+            RETURN rec.id as event_id,
+                rec.data as event_date,
+                rec.pavadinimas as title,
+                rec.tipas as type,
+                rec.adresas as address,
+                rec.miestas as city,
+                rec.vieta as venue,
+                rec.amziaus_cenzas as age_restriction,
+                rec.renginio_trukme as duration,
+                rec.bilieto_tipai as ticket_types,
+                rec.organizatoriai as organizers,
+                similarity_score
         """
         return self._run_query(query, {
             'user_id': user_id, 
-            'limit': limit,
-            'months_ahead': months_ahead
         })
