@@ -34,12 +34,12 @@ def create_keyspace_and_tables():
     session.execute("""
         CREATE TABLE IF NOT EXISTS questions_by_event (
             event_id TEXT,
-            question_date DATE,
             question_id UUID,
+            question_date DATE,
             user_id TEXT,
             question_text TEXT,
-            PRIMARY KEY ((event_id), question_date, question_id)
-        ) WITH CLUSTERING ORDER BY (question_date DESC);
+            PRIMARY KEY ((event_id), question_id)
+        ) WITH CLUSTERING ORDER BY (question_id ASC);
     """)
 
     # 3 Lentelė: klausimai pagal datą
@@ -62,8 +62,31 @@ def create_keyspace_and_tables():
             answer_id UUID,
             user_id TEXT,
             answer_text TEXT,
-            PRIMARY KEY ((question_id), answer_date, answer_id)
-        ) WITH CLUSTERING ORDER BY (answer_date DESC);
+            PRIMARY KEY ((question_id), answer_id)
+        ) WITH CLUSTERING ORDER BY (answer_id ASC);
+    """)
+
+    # 5 Lentelė: atsakymai pagal klausimo ID
+    session.execute("""
+        CREATE TABLE IF NOT EXISTS questions_by_event_and_date (
+            event_id TEXT,
+            question_date DATE,
+            question_id UUID,
+            user_id TEXT,
+            question_text TEXT,
+            PRIMARY KEY ((event_id, question_date), question_id)
+        ) WITH CLUSTERING ORDER BY (question_id ASC);
+    """)
+
+    session.execute("""
+        CREATE TABLE IF NOT EXISTS answers_by_question_and_date (
+            question_id UUID,
+            answer_date DATE,
+            answer_id UUID,
+            user_id TEXT,
+            answer_text TEXT,
+            PRIMARY KEY ((question_id, answer_date), answer_id)
+        ) WITH CLUSTERING ORDER BY (answer_id ASC);
     """)
 
     print("Keyspace ir lentelės sėkmingai sukurtos Cassandra duomenų bazėje.")

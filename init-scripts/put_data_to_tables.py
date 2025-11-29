@@ -40,15 +40,21 @@ def main():
 
         # Insert into questions_by_event
         session.execute("""
-            INSERT INTO questions_by_event (event_id, question_date, question_id, user_id, question_text)
+            INSERT INTO questions_by_event (event_id, question_id, question_date, user_id, question_text)
             VALUES (%s, %s, %s, %s, %s)
-        """, (event_id, today, q_uuid, user_id, q_text))
+        """, (event_id, q_uuid, today, user_id, q_text))
 
         # Insert into questions_by_date
         session.execute("""
             INSERT INTO questions_by_date (question_date, question_id, event_id, user_id, question_text)
             VALUES (%s, %s, %s, %s, %s)
         """, (today, q_uuid, event_id, user_id, q_text))
+
+        # Insert into questions_by_event_and_date
+        session.execute("""
+            INSERT INTO questions_by_event_and_date (event_id, question_date, question_id, user_id, question_text)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (event_id, today, q_uuid, user_id, q_text))
 
     print("✅ Questions inserted successfully.")
 
@@ -73,6 +79,12 @@ def main():
 
         session.execute("""
             INSERT INTO answers_by_question (question_id, answer_date, answer_id, user_id, answer_text)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (q_uuid, today, a_uuid, user_id, a_text))
+
+        # Insert into answers_by_question_and_date
+        session.execute("""
+            INSERT INTO answers_by_question_and_date (question_id, answer_date, answer_id, user_id, answer_text)
             VALUES (%s, %s, %s, %s, %s)
         """, (q_uuid, today, a_uuid, user_id, a_text))
 
