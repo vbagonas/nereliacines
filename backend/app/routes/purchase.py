@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from backend.app.extensions import db, redis
+from backend.app.extensions import db, redis, neo4
 from datetime import datetime, timezone
 purchase_bp = Blueprint('purchase', __name__, url_prefix='/api/v1')
 
@@ -78,5 +78,8 @@ def purchase():
                 valid_ids = [eid for eid in valid_ids if eid != str(renginys_id)]
                 redis.set_cache("valid_events", valid_ids)
 
+
+    # pridedam i neo4j
+    neo4.add_purchase(vartotojo_id, renginys_id)
 
     return jsonify({"ok": True, "message": "Purchase successful.", "order_id": str(ins.inserted_id), "order": order})

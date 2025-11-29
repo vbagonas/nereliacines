@@ -28,9 +28,7 @@ def top3_by_tickets():
     cached = redis.get_cache(cache_key)
     if cached:
         print("Returning top3 events from Redis cache")
-        return app.response_class(
-            dumps(cached, json_options=RELAXED_JSON_OPTIONS),
-            mimetype="application/json")
+        return cached
 
     print("Computing aggregation in MongoDB...")
     pipeline = [
@@ -74,7 +72,4 @@ def top3_by_tickets():
     # Cache result for 10 minutes (600 seconds)
     redis.set_cache(cache_key, doc, ttl=600)
 
-    return app.response_class(
-        dumps(doc, json_options=RELAXED_JSON_OPTIONS),
-        mimetype="application/json"
-    )
+    return doc

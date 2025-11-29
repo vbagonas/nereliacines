@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from backend.app.extensions import db
+from backend.app.extensions import db, neo4
 from backend.app.utils.auth import verify_password, hash_password
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1')
@@ -46,6 +46,14 @@ def register_user():
         "Pomegiai": payload.get("pomegiai", []) or [],
         "Slaptazodis": hashed_password,
     }
+
+    neo4.add_user(
+        user_id=email,
+        vardas=user_doc.get("Vardas"),
+        pavarde=user_doc.get("Pavarde"),
+        miestas=user_doc.get("Miestas"),
+        pomegiai=user_doc.get("Pomegiai", [])
+    )
 
     db.vartotojai.insert_one(user_doc)
     public_user = {k: v for k, v in user_doc.items() if k != "Slaptazodis"}
