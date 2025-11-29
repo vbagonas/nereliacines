@@ -48,15 +48,15 @@ class GraphDB():
 
 
     def add_purchase(self, user_id, event_id, event_date=None):
-        """Record purchase and optionally set event date"""
+        """Record purchase relationship between user and event"""
         query = """
             MERGE (u:User {id: $user_id})
             MERGE (e:Event {id: $event_id})
-            MERGE (u)-[p:PURCHASED]->(e)
+            MERGE (u)-[p:BOUGHT]->(e)
             ON CREATE SET p.timestamp = timestamp()
         """
         if event_date:
-            query += "SET e.date = datetime($event_date)"
+            query += " SET e.data = datetime($event_date)"
         
         return self._run_query(query, {
             'user_id': user_id, 
@@ -119,3 +119,33 @@ class GraphDB():
         return self._run_query(query, {
             'user_id': user_id, 
         })
+    
+
+    def add_user(self, user_id, miestas=None, pavarde=None, pomegiai=None, vardas=None):
+        """Add a new user with properties"""
+        query = """
+            MERGE (u:User {id: $user_id})
+            ON CREATE SET u.created_at = timestamp()
+        """
+        
+        params = {'user_id': user_id}
+        
+        if miestas:
+            query += ", u.miestas = $miestas"
+            params['miestas'] = miestas
+        
+        if pavarde:
+            query += ", u.pavarde = $pavarde"
+            params['pavarde'] = pavarde
+        
+        if pomegiai:
+            query += ", u.pomegiai = $pomegiai"
+            params['pomegiai'] = pomegiai
+        
+        if vardas:
+            query += ", u.vardas = $vardas"
+            params['vardas'] = vardas
+        
+        query += " RETURN u"
+        
+        return self._run_query(query, params)

@@ -8,21 +8,18 @@ recommendations_bp = Blueprint('recommendations', __name__, url_prefix='/api/v1'
 def get_recommendations(user_id):
     if neo4.has_purchase_history(user_id):
         events = neo4.recommend_collaborative(user_id)
-        
+
     else:
         events = top3_by_tickets()
-
-    print(events)
 
     return jsonify(events), 200
 
 
 
 @recommendations_bp.get("/recommendations/upcoming/<user_id>")
-def get_upcoming_recommendations():
-    body = request.get_json(force=True)
-    user_id = body.get('user_id')
-
-    events = neo4.recommend_collaborative_upcoming(user_id)    
-
+def get_upcoming_recommendations(user_id):
+    if neo4.has_purchase_history(user_id):
+        events = neo4.recommend_collaborative_upcoming(user_id)    
+    else:
+        
     return jsonify(events), 200
