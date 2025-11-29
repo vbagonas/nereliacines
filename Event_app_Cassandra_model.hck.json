@@ -1,0 +1,933 @@
+{
+  "modelName": "question_date",
+  "collections": [
+    {
+      "collectionName": "questions_all",
+      "type": "object",
+      "properties": [
+        {
+          "name": "question_date",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "childType": "date",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "compositePartitionKey": false,
+          "compositeClusteringKey": false,
+          "error": {},
+          "required": false,
+          "GUID": "36e16ae0-e14d-4485-9ee7-5df761f65e15"
+        },
+        {
+          "name": "question_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "6932da66-7575-4273-9e9a-1a46cc046e77",
+          "error": {},
+          "compositePartitionKey": true,
+          "required": true
+        },
+        {
+          "name": "event_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "8b826bcc-429a-45e3-bd0f-ad9f57a192f1",
+          "error": {}
+        },
+        {
+          "name": "user_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "df29b477-b2e4-48c9-a8bf-5cbc6efc3bb5",
+          "error": {},
+          "required": false
+        },
+        {
+          "name": "question_text",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "45b30dff-6327-4789-88f5-c9bb49715bae",
+          "error": {}
+        }
+      ],
+      "definitions": {
+        "type": "definitions",
+        "properties": [],
+        "GUID": "4602259d-d733-497a-96e4-5bc1660d1f23"
+      },
+      "isActivated": true,
+      "additionalProperties": false,
+      "collectionUsers": [],
+      "tableIfNotExist": false,
+      "searchIndexIfNotExist": false,
+      "GUID": "abf4e6d0-6d5c-4aff-a655-4a3719459cb0",
+      "hackoladeMeta": {
+        "validationErrors": {}
+      },
+      "bucketId": "bf60729d-476a-4b58-a14c-206c3bcfb430",
+      "compositePartitionKey": [
+        {
+          "keyId": "6932da66-7575-4273-9e9a-1a46cc046e77"
+        }
+      ],
+      "compositeClusteringKey": []
+    },
+    {
+      "collectionName": "questions_by_event",
+      "type": "object",
+      "properties": [
+        {
+          "name": "event_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "01cce3d2-5933-4398-8ead-45f364c4284b",
+          "error": {},
+          "compositePartitionKey": true,
+          "required": true
+        },
+        {
+          "name": "question_date",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "childType": "date",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "compositePartitionKey": false,
+          "compositeClusteringKey": false,
+          "error": {},
+          "required": false,
+          "GUID": "fb4b24da-89c7-4d98-9c24-fc94a21c1c55"
+        },
+        {
+          "name": "question_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "c649610d-c280-46e8-b529-856ca4715f03",
+          "error": {},
+          "compositeClusteringKey": true,
+          "required": true
+        },
+        {
+          "name": "user_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "673a16b0-df3f-493c-bdd0-900c61527cdd",
+          "error": {},
+          "required": false
+        },
+        {
+          "name": "question_text",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "105afc8f-73ff-4d68-9b80-4b227bff48d8",
+          "error": {}
+        }
+      ],
+      "definitions": {
+        "type": "definitions",
+        "properties": [],
+        "GUID": "cd797e6f-71a5-4cb4-ac53-54a9fe7643eb"
+      },
+      "isActivated": true,
+      "additionalProperties": false,
+      "collectionUsers": [],
+      "tableIfNotExist": false,
+      "searchIndexIfNotExist": false,
+      "GUID": "d0d5c78b-175d-4b66-a444-403bed1005d6",
+      "bucketId": "bf60729d-476a-4b58-a14c-206c3bcfb430",
+      "hackoladeMeta": {
+        "validationErrors": {}
+      },
+      "compositePartitionKey": [
+        {
+          "keyId": "01cce3d2-5933-4398-8ead-45f364c4284b"
+        }
+      ],
+      "compositeClusteringKey": [
+        {
+          "keyId": "c649610d-c280-46e8-b529-856ca4715f03",
+          "type": "ascending"
+        }
+      ]
+    },
+    {
+      "collectionName": "questions_by_date",
+      "type": "object",
+      "properties": [
+        {
+          "name": "question_date",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "childType": "date",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "compositePartitionKey": true,
+          "error": {},
+          "required": true,
+          "GUID": "58d8afb8-aba2-4959-9464-81d01bc0d024"
+        },
+        {
+          "name": "question_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "e4f1324c-a72b-495d-8cb4-43463f21a32e",
+          "error": {},
+          "compositeClusteringKey": true,
+          "required": true
+        },
+        {
+          "name": "event_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "45eca74a-6638-4ab7-ba7e-2def5cf16425",
+          "error": {}
+        },
+        {
+          "name": "user_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "d2be815e-550e-4356-a103-010c6d7341dc",
+          "error": {}
+        },
+        {
+          "name": "question_text",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "7c2aaf39-f01f-46c8-8efa-d43fd74d19ea",
+          "error": {}
+        }
+      ],
+      "definitions": {
+        "type": "definitions",
+        "properties": [],
+        "GUID": "f4c427c2-e91a-4d2a-bfc7-8443286e7aba"
+      },
+      "isActivated": true,
+      "additionalProperties": false,
+      "collectionUsers": [],
+      "tableIfNotExist": false,
+      "searchIndexIfNotExist": false,
+      "GUID": "fc8e9c9d-1a09-49ce-939c-ff0ac929887a",
+      "bucketId": "bf60729d-476a-4b58-a14c-206c3bcfb430",
+      "hackoladeMeta": {
+        "validationErrors": {}
+      },
+      "compositePartitionKey": [
+        {
+          "keyId": "58d8afb8-aba2-4959-9464-81d01bc0d024"
+        }
+      ],
+      "compositeClusteringKey": [
+        {
+          "keyId": "e4f1324c-a72b-495d-8cb4-43463f21a32e",
+          "type": "ascending"
+        }
+      ]
+    },
+    {
+      "collectionName": "answers_by_question",
+      "type": "object",
+      "properties": [
+        {
+          "name": "question_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "6e04dd3c-ae2b-4094-95e4-f1a90305e094",
+          "error": {},
+          "compositePartitionKey": true,
+          "required": true
+        },
+        {
+          "name": "answer_date",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "childType": "date",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "compositePartitionKey": false,
+          "compositeClusteringKey": false,
+          "error": {},
+          "required": false,
+          "GUID": "be0cb2a7-9c08-4e14-bce7-7ef5f806b38e"
+        },
+        {
+          "name": "answer_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "af8aaaba-efe5-4429-882d-194246668b5c",
+          "error": {},
+          "compositeClusteringKey": true,
+          "required": true
+        },
+        {
+          "name": "user_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "64bddcef-862a-4035-a6a7-9c8c5b2dde74",
+          "error": {},
+          "required": false
+        },
+        {
+          "name": "answer_text",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "5abeae35-0ccb-476f-9b49-4e31ef5dcce9",
+          "error": {}
+        }
+      ],
+      "definitions": {
+        "type": "definitions",
+        "properties": [],
+        "GUID": "d4e2ba9c-dcc3-4c17-aead-1d4bc0a2c47e"
+      },
+      "isActivated": true,
+      "additionalProperties": false,
+      "collectionUsers": [],
+      "tableIfNotExist": false,
+      "searchIndexIfNotExist": false,
+      "GUID": "6974e310-0e72-4e27-afef-4215b0bfe63c",
+      "bucketId": "bf60729d-476a-4b58-a14c-206c3bcfb430",
+      "hackoladeMeta": {
+        "validationErrors": {}
+      },
+      "compositePartitionKey": [
+        {
+          "keyId": "6e04dd3c-ae2b-4094-95e4-f1a90305e094"
+        }
+      ],
+      "compositeClusteringKey": [
+        {
+          "keyId": "af8aaaba-efe5-4429-882d-194246668b5c",
+          "type": "ascending"
+        }
+      ]
+    },
+    {
+      "collectionName": "questions_by_event_and_date",
+      "type": "object",
+      "properties": [
+        {
+          "name": "event_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "5adb2ca5-0ca3-47c8-ae4e-56553d02c1e4",
+          "error": {},
+          "compositePartitionKey": true,
+          "required": true
+        },
+        {
+          "name": "question_date",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "childType": "date",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "error": {},
+          "GUID": "265e62ad-52e4-4dca-93c0-0947ed1a127b",
+          "compositePartitionKey": true,
+          "required": true
+        },
+        {
+          "name": "question_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "e9102a2c-c9d4-4abe-9738-d3c63cc1d423",
+          "error": {},
+          "compositeClusteringKey": true,
+          "required": true
+        },
+        {
+          "name": "user_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "0eb52c13-25ea-4ba3-9643-2cd1b3e61515",
+          "error": {}
+        },
+        {
+          "name": "question_text",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "3cb8bd3e-ebd0-4ab6-b900-d6f0a732935e",
+          "error": {}
+        }
+      ],
+      "definitions": {
+        "type": "definitions",
+        "properties": [],
+        "GUID": "05e70b72-84db-41da-9974-e258974a3093"
+      },
+      "isActivated": true,
+      "additionalProperties": false,
+      "collectionUsers": [],
+      "tableIfNotExist": false,
+      "searchIndexIfNotExist": false,
+      "GUID": "8a20907d-dd5f-4470-b1b3-096833e150b5",
+      "bucketId": "bf60729d-476a-4b58-a14c-206c3bcfb430",
+      "hackoladeMeta": {
+        "validationErrors": {}
+      },
+      "compositePartitionKey": [
+        {
+          "keyId": "5adb2ca5-0ca3-47c8-ae4e-56553d02c1e4"
+        },
+        {
+          "keyId": "265e62ad-52e4-4dca-93c0-0947ed1a127b"
+        }
+      ],
+      "compositeClusteringKey": [
+        {
+          "keyId": "e9102a2c-c9d4-4abe-9738-d3c63cc1d423",
+          "type": "ascending"
+        }
+      ]
+    },
+    {
+      "collectionName": "answers_by_question_and_date",
+      "type": "object",
+      "properties": [
+        {
+          "name": "question_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "459f255b-a179-49a1-b871-14d48e075304",
+          "error": {},
+          "compositePartitionKey": true,
+          "required": true,
+          "foreignCollection": "",
+          "foreignField": []
+        },
+        {
+          "name": "answer_date",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "childType": "date",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "compositePartitionKey": true,
+          "error": {},
+          "required": true,
+          "GUID": "5d629292-3407-454f-87c7-24a400a206f8",
+          "foreignCollection": "",
+          "foreignField": []
+        },
+        {
+          "name": "answer_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": true,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "1bb5e885-f7ed-4ccd-b502-dde00d54850d",
+          "error": {},
+          "compositeClusteringKey": true,
+          "required": true,
+          "foreignCollection": "",
+          "foreignField": []
+        },
+        {
+          "name": "user_id",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "0eb50632-e863-410d-a25b-c57eda2db369",
+          "error": {},
+          "required": false,
+          "foreignCollection": "",
+          "foreignField": []
+        },
+        {
+          "name": "answer_text",
+          "hackoladeMeta": {},
+          "isActivated": true,
+          "primaryKey": false,
+          "mode": "text",
+          "subtype": "string",
+          "childType": "char",
+          "type": "string",
+          "compositeKey": [
+            "compositePartitionKey",
+            "compositeClusteringKey"
+          ],
+          "GUID": "a2ed8da5-8efb-4893-bd59-2aa0f0e1385c",
+          "error": {},
+          "foreignCollection": "",
+          "foreignField": []
+        }
+      ],
+      "definitions": {
+        "type": "definitions",
+        "properties": [],
+        "GUID": "18a6057f-4dfa-40c8-8d1a-cd2687f3ec4e"
+      },
+      "isActivated": true,
+      "additionalProperties": false,
+      "collectionUsers": [],
+      "tableIfNotExist": false,
+      "searchIndexIfNotExist": false,
+      "GUID": "79313a3c-644b-46d1-bb83-4e8e95d6fce5",
+      "bucketId": "bf60729d-476a-4b58-a14c-206c3bcfb430",
+      "hackoladeMeta": {
+        "validationErrors": {}
+      },
+      "compositePartitionKey": [
+        {
+          "keyId": "459f255b-a179-49a1-b871-14d48e075304"
+        },
+        {
+          "keyId": "5d629292-3407-454f-87c7-24a400a206f8"
+        }
+      ],
+      "compositeClusteringKey": [
+        {
+          "keyId": "1bb5e885-f7ed-4ccd-b502-dde00d54850d",
+          "type": "ascending"
+        }
+      ]
+    }
+  ],
+  "buckets": [
+    {
+      "name": "event_app",
+      "type": "bucket",
+      "collectionIds": [
+        "d0d5c78b-175d-4b66-a444-403bed1005d6",
+        "abf4e6d0-6d5c-4aff-a655-4a3719459cb0",
+        "fc8e9c9d-1a09-49ce-939c-ff0ac929887a",
+        "6974e310-0e72-4e27-afef-4215b0bfe63c",
+        "8a20907d-dd5f-4470-b1b3-096833e150b5",
+        "79313a3c-644b-46d1-bb83-4e8e95d6fce5"
+      ],
+      "backgroundColor": {
+        "r": 129,
+        "g": 212,
+        "b": 250,
+        "a": 1
+      },
+      "show": true,
+      "isActivated": true,
+      "indexes": [],
+      "replStrategy": "SimpleStrategy",
+      "addToCqlScript": true,
+      "keyspaceIfNotExist": false,
+      "GUID": "bf60729d-476a-4b58-a14c-206c3bcfb430",
+      "hackoladeMeta": {
+        "validationErrors": {}
+      }
+    }
+  ],
+  "views": [],
+  "relationships": [],
+  "users": [],
+  "diagramViews": [],
+  "idToNameHashTable": {
+    "abf4e6d0-6d5c-4aff-a655-4a3719459cb0": "questions_all",
+    "36e16ae0-e14d-4485-9ee7-5df761f65e15": "question_date",
+    "6932da66-7575-4273-9e9a-1a46cc046e77": "question_id",
+    "8b826bcc-429a-45e3-bd0f-ad9f57a192f1": "event_id",
+    "df29b477-b2e4-48c9-a8bf-5cbc6efc3bb5": "user_id",
+    "45b30dff-6327-4789-88f5-c9bb49715bae": "question_text",
+    "bf60729d-476a-4b58-a14c-206c3bcfb430": "event_app",
+    "d0d5c78b-175d-4b66-a444-403bed1005d6": "questions_by_event",
+    "01cce3d2-5933-4398-8ead-45f364c4284b": "event_id",
+    "fb4b24da-89c7-4d98-9c24-fc94a21c1c55": "question_date",
+    "c649610d-c280-46e8-b529-856ca4715f03": "question_id",
+    "673a16b0-df3f-493c-bdd0-900c61527cdd": "user_id",
+    "105afc8f-73ff-4d68-9b80-4b227bff48d8": "question_text",
+    "fc8e9c9d-1a09-49ce-939c-ff0ac929887a": "questions_by_date",
+    "58d8afb8-aba2-4959-9464-81d01bc0d024": "question_date",
+    "e4f1324c-a72b-495d-8cb4-43463f21a32e": "question_id",
+    "45eca74a-6638-4ab7-ba7e-2def5cf16425": "event_id",
+    "d2be815e-550e-4356-a103-010c6d7341dc": "user_id",
+    "7c2aaf39-f01f-46c8-8efa-d43fd74d19ea": "question_text",
+    "6974e310-0e72-4e27-afef-4215b0bfe63c": "answers_by_question",
+    "6e04dd3c-ae2b-4094-95e4-f1a90305e094": "question_id",
+    "be0cb2a7-9c08-4e14-bce7-7ef5f806b38e": "answer_date",
+    "af8aaaba-efe5-4429-882d-194246668b5c": "answer_id",
+    "64bddcef-862a-4035-a6a7-9c8c5b2dde74": "user_id",
+    "5abeae35-0ccb-476f-9b49-4e31ef5dcce9": "answer_text",
+    "8a20907d-dd5f-4470-b1b3-096833e150b5": "questions_by_event_and_date",
+    "5adb2ca5-0ca3-47c8-ae4e-56553d02c1e4": "event_id",
+    "265e62ad-52e4-4dca-93c0-0947ed1a127b": "question_date",
+    "e9102a2c-c9d4-4abe-9738-d3c63cc1d423": "question_id",
+    "0eb52c13-25ea-4ba3-9643-2cd1b3e61515": "user_id",
+    "3cb8bd3e-ebd0-4ab6-b900-d6f0a732935e": "question_text",
+    "459f255b-a179-49a1-b871-14d48e075304": "question_id",
+    "5d629292-3407-454f-87c7-24a400a206f8": "answer_date",
+    "1bb5e885-f7ed-4ccd-b502-dde00d54850d": "answer_id",
+    "0eb50632-e863-410d-a25b-c57eda2db369": "user_id",
+    "a2ed8da5-8efb-4893-bd59-2aa0f0e1385c": "answer_text",
+    "79313a3c-644b-46d1-bb83-4e8e95d6fce5": "answers_by_question_and_date"
+  },
+  "definitions": {
+    "type": "definitions",
+    "properties": [],
+    "GUID": "760c9154-690c-4d68-84fe-3c1a3b44919b"
+  },
+  "polyglotDefinitions": {
+    "type": "polyglotDefinitions",
+    "properties": [],
+    "GUID": "f54035f9-3c06-414f-ad96-e81d213faadc"
+  },
+  "externalDefinitions": {
+    "type": "externalDefinitions",
+    "properties": [],
+    "GUID": "6ba38baa-6dcc-4077-b53e-838be366253a"
+  },
+  "sources": [],
+  "decorativeSymbols": [],
+  "dbVersion": "5.x",
+  "dbVendor": "Cassandra",
+  "appTarget": "CASSANDRA",
+  "creationTS": "2025-11-08T18:11:50.138Z",
+  "GUID": "2ad771f0-f80e-45ea-8598-4273ef76feb1",
+  "isLineageEnabled": false,
+  "hackoladeMeta": {
+    "validationErrors": {
+      "modelName": false
+    }
+  },
+  "lastModifTS": "2025-11-28T10:39:48.774Z",
+  "persistenceSchemaVersion": "8",
+  "isCreatedByPlugin": true,
+  "pluginInformation": {
+    "pluginName": "Cassandra",
+    "pluginVersion": "0.2.12",
+    "pluginEngineVersion": "1.0.0"
+  },
+  "applicationInformation": {
+    "version": "8.6.1"
+  },
+  "settings": {
+    "centralPane": {
+      "dbLevel": {
+        "erd": [
+          {
+            "GUID": "abf4e6d0-6d5c-4aff-a655-4a3719459cb0",
+            "x": 714.7454091538971,
+            "y": 1071.7243267888414,
+            "width": 259,
+            "height": 123,
+            "color": {}
+          },
+          {
+            "GUID": "d0d5c78b-175d-4b66-a444-403bed1005d6",
+            "x": 1010.6707040765901,
+            "y": 1072.0725846602518,
+            "width": 271,
+            "height": 123,
+            "color": {}
+          },
+          {
+            "GUID": "fc8e9c9d-1a09-49ce-939c-ff0ac929887a",
+            "x": 693.3739918528705,
+            "y": 1244.5795312559808,
+            "width": 271,
+            "height": 123,
+            "color": {}
+          },
+          {
+            "GUID": "6974e310-0e72-4e27-afef-4215b0bfe63c",
+            "x": 1008.1872631077808,
+            "y": 1244.6248642801127,
+            "width": 263,
+            "height": 123,
+            "color": {}
+          },
+          {
+            "GUID": "8a20907d-dd5f-4470-b1b3-096833e150b5",
+            "x": 1306.8860063176805,
+            "y": 1074.026435661128,
+            "width": 310.02108872288255,
+            "height": 123.15105443614411,
+            "color": {}
+          },
+          {
+            "GUID": "79313a3c-644b-46d1-bb83-4e8e95d6fce5",
+            "x": 1297.0081245962242,
+            "y": 1247.282558903842,
+            "width": 325.1569395517818,
+            "height": 115.09367338313535,
+            "color": {}
+          }
+        ],
+        "erdDefinitions": {
+          "erd": [],
+          "rootPath": [],
+          "entities": [],
+          "decorativeSymbols": []
+        },
+        "buckets": [
+          {
+            "x": 629.3739918528705,
+            "y": 1007.7243267888414,
+            "GUID": "bf60729d-476a-4b58-a14c-206c3bcfb430"
+          }
+        ],
+        "collapsedNodes": [],
+        "activeRelationship": "",
+        "activeRelationshipFields": {
+          "childField": [],
+          "parentField": []
+        },
+        "selectedCollections": [],
+        "displayColorPicker": false,
+        "graphView": {
+          "erd": [],
+          "buckets": [],
+          "decorativeSymbols": [],
+          "forceLayout": true,
+          "defaultLinkLength": 300
+        },
+        "diagramViews": [],
+        "decorativeSymbols": [],
+        "nestedCollectionsLayout": "horizontal",
+        "options": [
+          {
+            "autoWidth": false,
+            "autoHeight": false,
+            "GUID": "8a20907d-dd5f-4470-b1b3-096833e150b5"
+          },
+          {
+            "GUID": "79313a3c-644b-46d1-bb83-4e8e95d6fce5",
+            "autoWidth": false,
+            "autoHeight": false
+          }
+        ],
+        "relationshipUpdateDisabled": false
+      },
+      "collectionLevel": {},
+      "changed": false
+    },
+    "dtDiagram": {
+      "collapsedNodes": [],
+      "shouldDistributeCollections": false
+    }
+  }
+}
