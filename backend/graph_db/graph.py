@@ -39,8 +39,9 @@ class GraphDB():
 
     def has_purchase_history(self, user_id):
         """Check if user has any purchase history"""
+        # ✅ PATAISYTA: BOUGHT vietoj PURCHASED
         query = """
-            MATCH (u:User {id: $user_id})-[:PURCHASED]->(:Event)    
+            MATCH (u:User {id: $user_id})-[:BOUGHT]->(:Event)    
             RETURN count(*) as purchase_count
         """
         result = self._run_query(query, {'user_id': user_id})
@@ -67,16 +68,17 @@ class GraphDB():
 
     def recommend_collaborative(self, user_id):
         """All recommended events based on similar users"""
-        print(user_id)
+        print(f"🔍 Getting recommendations for user: {user_id}")
 
         query = """
             MATCH (u:User {id: $user_id})-[:BOUGHT]->(e:Event)
             MATCH (other:User)-[:BOUGHT]->(e)
             MATCH (other)-[:BOUGHT]->(rec:Event)
             WHERE NOT (u)-[:BOUGHT]->(rec)
+            AND datetime(rec.data) > datetime()
             WITH rec, COUNT(DISTINCT other) as similarity_score
             ORDER BY similarity_score DESC
-            LIMIT 5
+            LIMIT 10
             RETURN rec.id as event_id,
                 rec.data as event_date,
                 rec.pavadinimas as title,
@@ -87,7 +89,7 @@ class GraphDB():
                 rec.amziaus_cenzas as age_restriction,
                 rec.renginio_trukme as duration,
                 rec.bilieto_tipai as ticket_types,
-                rec.organizatoriai as organizers,
+                rec.organizatoriai as organizers
         """
         return self._run_query(query, {'user_id': user_id})
     
@@ -114,7 +116,7 @@ class GraphDB():
                 rec.amziaus_cenzas as age_restriction,
                 rec.renginio_trukme as duration,
                 rec.bilieto_tipai as ticket_types,
-                rec.organizatoriai as organizers,
+                rec.organizatoriai as organizers
         """
         return self._run_query(query, {
             'user_id': user_id, 

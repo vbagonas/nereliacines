@@ -89,13 +89,12 @@
   const API_BASE = 'http://localhost:8080/api/v1';
 
   // Simple API routes from app.py
-  const GET_ALL_URL                 = `${API_BASE}/get_questions`;               // {ok, questions}
-  const GET_BY_DATE_URL             = `${API_BASE}/get_questions_by_date`;       // ?date=YYYY-MM-DD
-  const GET_BY_EVENT_URL            = `${API_BASE}/get_questions_by_event`;      // /<event_id>
-  const GET_BY_EVENT_AND_DATE_URL   = `${API_BASE}/get_questions_by_event_and_date`;
-  const GET_ANSWERS_URL             = `${API_BASE}/get_answers_by_question`;     // /<question_id>
-  const POST_QUESTION_URL           = `${API_BASE}/questions`;
-  const POST_ANSWER_URL             = `${API_BASE}/answers`;
+  const GET_ALL_URL       = `${API_BASE}/get_questions`;               // {ok, questions}
+  const GET_BY_DATE_URL   = `${API_BASE}/get_questions_by_date`;       // ?date=YYYY-MM-DD
+  const GET_BY_EVENT_URL  = `${API_BASE}/get_questions_by_event`;      // /<event_id>
+  const GET_ANSWERS_URL   = `${API_BASE}/get_answers_by_question`;     // /<question_id>
+  const POST_QUESTION_URL = `${API_BASE}/questions`;
+  const POST_ANSWER_URL   = `${API_BASE}/answers`;
 
   // Events API (already existing)
   const EVENTS_URL = `${API_BASE}/events`;
@@ -189,16 +188,7 @@
   async function loadQuestions(dateStr, eventId){
     try{
       let questions=[];
-      if (eventId && dateStr && dateStr.length === 10) {
-      // Event + date → use new endpoint
-      const r = await fetch(
-        `${GET_BY_EVENT_AND_DATE_URL}/${encodeURIComponent(eventId)}?date=${encodeURIComponent(dateStr)}`
-      );
-      if (!r.ok) throw new Error('Failed to fetch questions by event and date');
-      const payload = await r.json();
-      questions = payload.questions || [];
-
-      }else if(eventId){
+      if(eventId){
         const r = await fetch(`${GET_BY_EVENT_URL}/${encodeURIComponent(eventId)}`);
         if(!r.ok) throw new Error('Failed to fetch questions by event');
         const payload = await r.json();
@@ -241,9 +231,8 @@
       const card=document.createElement('div');
       card.className='card question-card p-3 mb-3';
 
-      const questionDate=new Date(q.created_at||q.question_date).toLocaleString('lt-LT',{
-        year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
-      });
+      // ✅ PATAISYTA: Data jau ateina kaip string iš Cassandra, tiesiog rodome
+      const questionDate = q.question_date || q.created_at || 'Nėra datos';
 
       const evName=eventIdToName.get(q.event_id)||'';
       const eventLabel=evName?`Renginys: ${q.event_id} — <em>${escapeHtml(evName)}</em>`:`Renginys: ${q.event_id}`;
@@ -251,9 +240,8 @@
       let answersHtml='';
       if(q.answers&&q.answers.length>0){
         answersHtml=q.answers.map(a=>{
-          const ad=new Date(a.created_at).toLocaleString('lt-LT',{
-            year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
-          });
+          // ✅ PATAISYTA: Data jau ateina kaip string iš Cassandra, tiesiog rodome
+          const ad = a.answer_date || a.created_at || 'Nėra datos';
           return `
             <div class="card answer-card p-2 mb-2">
               <div class="d-flex justify-content-between align-items-start">

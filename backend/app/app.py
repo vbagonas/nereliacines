@@ -12,7 +12,7 @@ from backend.app.routes.purchase import purchase_bp
 from backend.app.routes.cart import cart_bp
 from backend.app.routes.analytics import analytics_bp
 from backend.app.routes.questions import questions_bp
-from backend.app.routes.recommendations import recommendations_bp
+from backend.app.routes.recommendations import recommendations_bp  # ✅ NAUJAS
 
 from backend.graph_db.mongo_to_neo_importer import MongoToNeoImporter
 
@@ -25,10 +25,21 @@ class CustomJSONProvider(DefaultJSONProvider):
             return obj.isoformat()
         if isinstance(obj, uuid.UUID):
             return str(obj)
+        
+        # ✅ NAUJAS: Neo4j DateTime support
+        # Neo4j DateTime objektai turi iso_format() metodą
+        if hasattr(obj, 'iso_format'):
+            return obj.iso_format()
+        
+        # Arba tiesiog konvertuojam į string jei tai Neo4j objektas
+        obj_type = str(type(obj))
+        if 'neo4j' in obj_type.lower() or 'DateTime' in obj_type:
+            return str(obj)
+        
         return super().default(obj)
     
     def dumps(self, obj, **kwargs):
-        # ensure_ascii=False leis rodyti lietuviškas raides tiesiogiai
+        # ensure_ascii=False leis rodyti lietuviÅ¡kas raides tiesiogiai
         kwargs.setdefault("ensure_ascii", False)
         return super().dumps(obj, **kwargs)
     
@@ -48,7 +59,7 @@ def create_app():
     app.register_blueprint(cart_bp)
     app.register_blueprint(analytics_bp)
     app.register_blueprint(questions_bp)
-    app.register_blueprint(recommendations_bp)
+    app.register_blueprint(recommendations_bp)  # ✅ NAUJAS
     
     # Importuojam iš Mongo → Neo4j serveriui startuojant
     mongo_importer = MongoToNeoImporter()

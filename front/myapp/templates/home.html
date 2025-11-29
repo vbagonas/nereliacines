@@ -108,6 +108,14 @@
         </div>
     </div>  
 
+    <!-- ✅ NAUJAS: Rekomenduojami renginiai -->
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center text-white mb-4">Rekomenduojami renginiai</h1>
+        <div id="recommendedContainer" class="row g-4 justify-content-center">
+            <p class="text-center text-white fs-6">Kraunami rekomenduojami renginiai...</p>
+        </div>
+    </div>
+
     <div class="container">
         <h1 class="text-center text-white mb-4">Artimiausi renginiai</h1>
         <div id="eventsContainer" class="row g-4 justify-content-center"></div>
@@ -168,6 +176,12 @@
 
                     const even_data = await response.json();
                     const event = even_data.event;
+                    
+                    // ✅ FILTER: Skip past events
+                    const eventDate = new Date(event.Data);
+                    if (eventDate < new Date()) {
+                        continue;
+                    }
                     
                     console.log('Rendering event:', event);
 
@@ -486,7 +500,10 @@
                 return;
             }
 
-            events.slice(0, 3).forEach(event => {
+            const now = new Date();
+            const futureEvents = events.filter(e => new Date(e.Data) > now);
+
+            futureEvents.slice(0, 3).forEach(event => {
                 const card = document.createElement('div');
                 card.className = 'col-md-4 col-sm-6';
 
@@ -503,11 +520,107 @@
             });
         }
 
+        // ✅ NAUJAS: Load recommended events (rodo tik jei user turi purchases)
+        async function loadRecommendedEvents() {
+            const userId = getOwnerId();
+            try {
+                const response = await fetch(`http://localhost:8080/api/v1/recommendations/${encodeURIComponent(userId)}`);
+                
+                if (!response.ok) {
+                    console.log('Recommendations API failed');
+                    // Slepiame recommendations sekciją jei API neveikia
+                    document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
+                    // Rodom Top 3 kaip fallback
+                    document.getElementById('top3Container').closest('.container').style.display = 'block';
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // Tikrinam ar yra recommendations (tai reiškia kad user turi purchases)
+                const events = Array.isArray(data) ? data : (data.data || []);
+                
+                if (events.length > 0) {
+                    // ✅ User TURI purchases - rodom RECOMMENDATIONS, slepiame TOP3
+                    console.log('User has purchase history - showing recommendations');
+                    document.getElementById('recommendedContainer').closest('.container').style.display = 'block';
+                    document.getElementById('top3Container').closest('.container').style.display = 'none';
+                    renderRecommendedEvents(data);
+                } else {
+                    // ❌ User NETURI purchases - rodom TOP3, slepiame RECOMMENDATIONS
+                    console.log('User has no purchase history - showing top3');
+                    document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
+                    document.getElementById('top3Container').closest('.container').style.display = 'block';
+                }
+                
+            } catch (err) {
+                console.error('Error fetching recommended events:', err);
+                // Klaidos atveju rodom Top 3, slepiame Recommendations
+                document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
+                document.getElementById('top3Container').closest('.container').style.display = 'block';
+            }
+        }
+
+        // ✅ NAUJAS: Render recommended events (same style as Top 3)
+        function renderRecommendedEvents(data) {
+            const container = document.getElementById('recommendedContainer');
+            container.innerHTML = '';
+
+            // Suprantame ABIEJUS formatus:
+            // 1. Neo4j: tiesiog array [{title, city, event_date}, ...]
+            // 2. MongoDB top3: {count: 3, data: [{Pavadinimas, Miestas, Data}, ...]}
+            let events = data;
+            if (data && data.data) {
+                events = data.data;  // MongoDB formatas
+            }
+
+            if (!events || events.length === 0) {
+                container.innerHTML = '<p class="text-center text-white fs-6">Nėra rekomenduojamų renginių.</p>';
+                return;
+            }
+
+            events.forEach(event => {
+                const card = document.createElement('div');
+                card.className = 'col-md-4 col-sm-6';
+
+                // Suprantame ABIEJUS field name sistemas
+                const eventName = event.title || event.Pavadinimas || event.pavadinimas || 'Renginys';
+                const eventCity = event.city || event.Miestas || event.miestas || '';
+                const eventDate = event.event_date || event.Data || event.data || '';
+                
+                let dateStr = 'Nėra datos';
+                if (eventDate) {
+                    try {
+                        dateStr = new Date(eventDate).toLocaleDateString('lt-LT');
+                    } catch(e) {
+                        dateStr = String(eventDate).substring(0, 10);
+                    }
+                }
+
+                card.innerHTML = `
+                    <div class="card p-3 h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <h5 class="card-title fw-bold mb-4">${eventName}</h5>
+                            <p class="text-muted mb-1"><strong>Miestas:</strong> ${eventCity}</p>
+                            <p class="text-muted mb-1"><strong>Data:</strong> ${dateStr}</p>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-                                        loadEvents();
-                                        loadTop3Events();
-                                        loadCartFromServer(); 
-                                    });
+            // ✅ Pradžioje slepiame abi sekcijas (Top 3 ir Recommendations)
+            // Funkcija loadRecommendedEvents() nuspręs kurią rodyti
+            document.getElementById('top3Container').closest('.container').style.display = 'none';
+            document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
+            
+            loadEvents();
+            loadTop3Events();
+            loadRecommendedEvents();  // ✅ Ši funkcija nuspręs kurią sekciją rodyti
+            loadCartFromServer(); 
+        });
     </script>
 </body>
 </html>
