@@ -63,6 +63,19 @@ def get_questions_by_date():
     questions = cassandra.get_questions_by_date(qdate)
     return jsonify({"ok": True, "questions": questions})
 
+@questions_bp.get("/get_questions_by_event_and_date/<event_id>")
+def get_questions_by_event_and_date(event_id):
+    date_str = request.args.get("date")
+    if not date_str:
+        return jsonify({"ok": False, "error": "Missing query param ?date=YYYY-MM-DD"}), 400
+
+    try:
+        qdate = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+    questions = cassandra.get_questions_by_event_and_date(event_id, qdate)
+    return jsonify({"ok": True, "questions": questions})
 
 # ---- Answers (simple) ----
 

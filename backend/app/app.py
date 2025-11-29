@@ -14,6 +14,8 @@ from backend.app.routes.analytics import analytics_bp
 from backend.app.routes.questions import questions_bp
 from backend.app.routes.recommendations import recommendations_bp
 
+from backend.graph_db.mongo_to_neo_importer import MongoToNeoImporter
+
 
 class CustomJSONProvider(DefaultJSONProvider):
     def default(self, obj):
@@ -47,9 +49,15 @@ def create_app():
     app.register_blueprint(analytics_bp)
     app.register_blueprint(questions_bp)
     app.register_blueprint(recommendations_bp)
+    
+    # Importuojam iš Mongo → Neo4j serveriui startuojant
+    mongo_importer = MongoToNeoImporter()
+    mongo_importer.run()
+    
     return app
 
 
 if __name__ == "__main__":
     app = create_app()
+
     app.run(host="0.0.0.0", port=8080, debug=True)

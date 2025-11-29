@@ -155,6 +155,11 @@ class CassandraRepository:
             (question_date, question_id, event_id, user_id, text),
         )
 
+        self.session.execute("""
+            INSERT INTO questions_by_event_and_date (event_id, question_date, question_id, user_id, question_text)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (event_id, question_date, question_id, user_id, text))
+
         self.session.execute(
             """
             INSERT INTO questions_all (question_id, question_date, event_id, user_id, question_text)
@@ -177,6 +182,11 @@ class CassandraRepository:
             """,
             (question_uuid, answer_date, answer_id, user_id, text),
         )
+
+        self.session.execute("""
+            INSERT INTO answers_by_question_and_date (question_id, answer_date, answer_id, user_id, answer_text)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (question_uuid, answer_date, answer_id, user_id, text))
 
         return {"answer_id": str(answer_id)}
 
@@ -215,6 +225,23 @@ class CassandraRepository:
             for row in rows
         ]
 
+    def get_questions_by_event_and_date(self, event_id, question_date: date):
+        query = """
+            SELECT * FROM questions_by_event_and_date
+            WHERE event_id = %s AND question_date = %s
+        """
+        rows = self.session.execute(query, (event_id, question_date))
+        return [
+            {
+                "question_id": str(row.question_id),
+                "event_id": row.event_id,
+                "user_id": row.user_id,
+                "text": row.question_text,
+                "question_date": str(row.question_date),
+            }
+            for row in rows
+        ]
+
     def get_questions_by_date(self, question_date: date):
         query = "SELECT * FROM questions_by_date WHERE question_date = %s"
         rows = self.session.execute(query, (question_date,))
@@ -230,8 +257,6 @@ class CassandraRepository:
         ]
 
     def get_answers_by_question(self, question_id):
-        """Fetch answers for a question. Converts string to UUID if needed."""
-        # ✅ Convert string to UUID
         if isinstance(question_id, str):
             question_id = UUID(question_id)
             
@@ -248,6 +273,23 @@ class CassandraRepository:
             for row in rows
         ]
     
+    def get_answers_by_question_and_date(self, question_id, answer_date: date):
+        if isinstance(question_id, str):
+            question_id = UUID(question_id)
+            
+        query = "SELECT * FROM answers_by_question WHERE question_id = %s AND answer_date = %s"
+        rows = self.session.execute(query, (question_id, answer_date))
+        
+        return [
+            {
+                "answer_id": str(row.answer_id),
+                "user_id": row.user_id,
+                "text": row.answer_text,
+                "answer_date": str(row.answer_date)
+            }
+            for row in rows
+        ]
+
     # =========================
     # Helper: klausimai su atsakymais
     # =========================
