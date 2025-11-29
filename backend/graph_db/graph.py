@@ -149,3 +149,26 @@ class GraphDB():
         query += " RETURN u"
         
         return self._run_query(query, params)
+    
+    def get_upcoming_events(self, months=2, limit=5):
+        """Get upcoming events within specified time range"""
+        query = """
+            MATCH (e:Event)
+            WHERE datetime(e.data) >= datetime()
+            AND datetime(e.data) <= datetime() + duration({months: $months})
+            RETURN e.id as event_id,
+                e.data as event_date,
+                e.pavadinimas as title,
+                e.tipas as type,
+                e.adresas as address,
+                e.miestas as city,
+                e.vieta as venue,
+                e.amziaus_cenzas as age_restriction,
+                e.renginio_trukme as duration,
+                e.bilieto_tipai as ticket_types,
+                e.organizatoriai as organizers
+            ORDER BY e.data
+            LIMIT $limit
+        """
+        
+        return self._run_query(query, {'months': months, 'limit': limit})

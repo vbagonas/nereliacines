@@ -21,5 +21,5 @@ def get_upcoming_recommendations(user_id):
     if neo4.has_purchase_history(user_id):
         events = neo4.recommend_collaborative_upcoming(user_id)    
     else:
-        
+        events = neo4.get_upcoming_events()
     return jsonify(events), 200
