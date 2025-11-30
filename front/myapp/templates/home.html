@@ -100,27 +100,20 @@
             </div>
         </div>
     </nav>
-
+    
+    <!-- Rekomenduojami renginiai -->
     <div class="container mt-5 mb-5">
-        <h1 class="text-center text-white mb-4">Top 3 renginiai</h1>
-        <div id="top3Container" class="row g-4 justify-content-center">
-            <p class="text-center text-white fs-6">Kraunami top renginiai..</p>
+        <h1 class="text-center text-white mb-4">Rekomenduojami renginiai</h1>
+        <div id="recommendedContainer" class="row g-4 justify-content-center">
+            <p class="text-center text-white fs-6">Kraunami rekomenduojami renginiai...</p>
         </div>
-    </div>  
+    </div>
 
     <!-- Siūlome sekti organizatorius -->
     <div class="container mt-5 mb-5">
         <h1 class="text-center text-white mb-4">Siūlome sekti organizatorius</h1>
         <div id="organizersContainer" class="row g-4 justify-content-center">
             <p class="text-center text-white fs-6">Kraunami rekomenduojami organizatoriai...</p>
-        </div>
-    </div>
-
-    <!-- Artimiausi rekomenduojami renginiai -->
-    <div class="container mt-5 mb-5">
-        <h1 class="text-center text-white mb-4">Rekomenduojami renginiai</h1>
-        <div id="recommendedContainer" class="row g-4 justify-content-center">
-            <p class="text-center text-white fs-6">Kraunami artimiausi rekomenduojami renginiai...</p>
         </div>
     </div>
 
@@ -479,104 +472,26 @@
             }
         }
 
-        async function loadTop3Events() {
-            try {
-                const response = await fetch(TOP3_URL);
-                if (!response.ok) throw new Error('Failed to fetch top events');
-                const data = await response.json();
-
-                renderTop3Events(data.data);
-            } catch (err) {
-                console.error('Error fetching top events:', err);
-                const container = document.getElementById('top3Container');
-                container.innerHTML = '<p class="text-center text-white fs-6">Nepavyko įkelti populiariausių renginių.</p>';
-            }
-        }
-
-        function renderTop3Events(events) {
-            const container = document.getElementById('top3Container');
-            container.innerHTML = '';
-
-            if (!events || events.length === 0) {
-                container.innerHTML = '<p class="text-center text-white fs-6">Nėra duomenų apie pardavimus.</p>';
-                return;
-            }
-
-            const now = new Date();
-            const futureEvents = events.filter(e => new Date(e.Data) > now);
-
-            futureEvents.slice(0, 3).forEach(event => {
-                const card = document.createElement('div');
-                card.className = 'col-md-4 col-sm-6';
-
-                card.innerHTML = `
-                    <div class="card p-3 h-100 shadow-sm">
-                        <div class="card-body text-center">
-                            <h5 class="card-title fw-bold mb-4">${event.Pavadinimas}</h5>
-                            <p class="text-muted mb-1"><strong>Miestas:</strong> ${event.Miestas}</p>
-                            <p class="text-muted mb-1"><strong>Data:</strong> ${new Date(event.Data).toLocaleDateString('lt-LT')}</p>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // ---------- Rekomenduojami renginiai (su fallback į Top3) ----------
+        // ---------- Recommended Events ----------
         async function loadRecommendedEvents() {
             const userId = getOwnerId();
-            const recommendedContainer = document.getElementById('recommendedContainer').closest('.container');
-            const top3Container = document.getElementById('top3Container').closest('.container');
-
+            const container = document.getElementById('recommendedContainer');
+            
             try {
                 const response = await fetch(`http://localhost:8080/api/v1/recommendations/upcoming/${encodeURIComponent(userId)}`);
                 
                 if (!response.ok) {
-                    console.log('Upcoming recommendations API failed, falling back to Top3 as recommendations');
-                    return await showTop3AsRecommendations(recommendedContainer, top3Container);
+                    throw new Error('Failed to fetch recommendations');
                 }
                 
                 const data = await response.json();
-                let events = Array.isArray(data) ? data : (data.data || []);
-
-                if (events.length > 0) {
-                    console.log('Showing upcoming recommended events');
-                    recommendedContainer.style.display = 'block';
-                    top3Container.style.display = 'none';
-                    renderRecommendedEvents(events);
-                } else {
-                    console.log('No upcoming recommendations, using Top3 as recommendations');
-                    await showTop3AsRecommendations(recommendedContainer, top3Container);
-                }
+                const events = Array.isArray(data) ? data : (data.data || []);
+                console.info('Fetched recommended events:', events);
+                renderRecommendedEvents(events);
                 
             } catch (err) {
-                console.error('Error fetching upcoming recommended events:', err);
-                await showTop3AsRecommendations(recommendedContainer, top3Container);
-            }
-        }
-
-        async function showTop3AsRecommendations(recommendedContainer, top3Container) {
-            try {
-                const resp = await fetch(TOP3_URL);
-                if (!resp.ok) {
-                    recommendedContainer.style.display = 'none';
-                    top3Container.style.display = 'block';
-                    return;
-                }
-                const data = await resp.json();
-                const events = data.data || [];
-
-                if (events.length > 0) {
-                    recommendedContainer.style.display = 'block';
-                    top3Container.style.display = 'none';
-                    renderRecommendedEvents(events);
-                } else {
-                    recommendedContainer.style.display = 'none';
-                    top3Container.style.display = 'block';
-                }
-            } catch {
-                recommendedContainer.style.display = 'none';
-                top3Container.style.display = 'block';
+                console.error('Error fetching recommended events:', err);
+                container.innerHTML = '<p class="text-center text-white fs-6">Nepavyko įkelti rekomendacijų.</p>';
             }
         }
 
@@ -598,8 +513,6 @@
                 const eventName = event.title || event.Pavadinimas || event.pavadinimas || 'Renginys';
                 const eventCity = event.city || event.Miestas || event.miestas || '';
                 const eventDate = event.event_date || event.Data || event.data || '';
-
-                // ID reikalingas krepšeliui – iš Neo4j grįžta event_id
                 const eventId = event.event_id || event.id || event._id || '';
 
                 let dateStr = 'Nėra datos';
@@ -611,7 +524,6 @@
                     }
                 }
 
-                // Bilietai iš Neo4j (ticket_types – JSON string) arba iš Mongo (Bilieto_tipas – masyvas)
                 let tickets = [];
                 if (event.ticket_types) {
                     try {
@@ -661,9 +573,7 @@
             });
         }
 
-        // -----------------------------
-        // Organizatorių sekimas (localStorage)
-        // -----------------------------
+        // ---------- Organizer Following (localStorage) ----------
         const FOLLOW_KEY = 'followedOrganizers';
 
         function getFollowedOrganizers() {
@@ -691,11 +601,9 @@
             const idx = list.findIndex(o => o.name === name && o.email === email);
 
             if (idx >= 0) {
-                // jau sekamas -> nustojam sekti
                 list.splice(idx, 1);
                 button.innerHTML = '<i class="bi bi-heart"></i> Sekti';
             } else {
-                // pradėti sekti
                 list.push({ name, email });
                 button.innerHTML = '<i class="bi bi-heart-fill"></i> Sekama';
             }
@@ -703,29 +611,24 @@
             setFollowedOrganizers(list);
         }
 
-        // -----------------------------
-        // Organizatorių rekomendacijos
-        // -----------------------------
+        // ---------- Recommended Organizers ----------
         async function loadRecommendedOrganizers() {
             const container = document.getElementById('organizersContainer');
             if (!container) return;
 
             const section = container.closest('.container');
+            const userId = getOwnerId();
 
             try {
-                const userId = getOwnerId();
-                const res = await fetch(ORGANIZERS_URL(userId));
+                const response = await fetch(ORGANIZERS_URL(userId));
 
-                if (!res.ok) {
-                    console.error('Failed to fetch organizers');
-                    if (section) section.style.display = 'none';
-                    return;
+                if (!response.ok) {
+                    throw new Error('Failed to fetch organizers');
                 }
 
-                const data = await res.json();
+                const data = await response.json();
                 const organizers = Array.isArray(data) ? data : (data.data || []);
 
-                // jei backend grąžina tuščią masyvą (pvz. nėra pirkimų) – slepiam visą bloką
                 if (!organizers || organizers.length === 0) {
                     if (section) section.style.display = 'none';
                     return;
@@ -733,6 +636,7 @@
 
                 if (section) section.style.display = 'block';
                 renderOrganizers(organizers);
+                
             } catch (err) {
                 console.error('Error fetching organizers:', err);
                 if (section) section.style.display = 'none';
@@ -754,7 +658,6 @@
 
                 const name = org.name || 'Organizatorius';
                 const email = org.email || '';
-                const score = org.score ?? ''; // unused, but ok to keep
 
                 const followed = isOrganizerFollowed(name, email);
                 const heartIcon = followed ? 'bi-heart-fill' : 'bi-heart';
@@ -781,9 +684,9 @@
             });
         }
 
+        // ---------- Initialize ----------
         document.addEventListener('DOMContentLoaded', () => {
             loadEvents();
-            loadTop3Events();
             loadRecommendedEvents();
             loadRecommendedOrganizers();
             loadCartFromServer(); 
