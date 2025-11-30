@@ -598,7 +598,10 @@
                 const eventName = event.title || event.Pavadinimas || event.pavadinimas || 'Renginys';
                 const eventCity = event.city || event.Miestas || event.miestas || '';
                 const eventDate = event.event_date || event.Data || event.data || '';
-                
+
+                // ID reikalingas krepšeliui – iš Neo4j grįžta event_id
+                const eventId = event.event_id || event.id || event._id || '';
+
                 let dateStr = 'Nėra datos';
                 if (eventDate) {
                     try {
@@ -608,12 +611,49 @@
                     }
                 }
 
+                // Bilietai iš Neo4j (ticket_types – JSON string) arba iš Mongo (Bilieto_tipas – masyvas)
+                let tickets = [];
+                if (event.ticket_types) {
+                    try {
+                        tickets = JSON.parse(event.ticket_types);
+                    } catch (e) {
+                        tickets = [];
+                    }
+                } else if (event.Bilieto_tipas) {
+                    tickets = event.Bilieto_tipas;
+                }
+
+                let ticketsHtml = '';
+                if (tickets.length > 0 && eventId) {
+                    const safeName = String(eventName).replace(/'/g, "\\'");
+                    ticketsHtml = `
+                        <hr>
+                        <p class="fw-semibold mb-1">Bilietai</p>
+                        <div class="row row-cols-1 row-cols-md-2 g-2">
+                            ${tickets.map(b => `
+                                <div class="col">
+                                    <div class="d-flex align-items-center border rounded p-2">
+                                        <button class="btn btn-sm btn-outline-primary me-2 flex-shrink-0"
+                                            onclick="addToCart('${b.Bilieto_tipas_id}', '${b.Kaina}', '${safeName}', '${eventId}')">
+                                            ${b.Kaina}€
+                                        </button>
+                                        <span class="text-muted small">
+                                            ${b.Bilieto_tipas_id} Likutis: ${b.Likutis}
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
                 card.innerHTML = `
                     <div class="card p-3 h-100 shadow-sm">
                         <div class="card-body text-center">
                             <h5 class="card-title fw-bold mb-4">${eventName}</h5>
                             <p class="text-muted mb-1"><strong>Miestas:</strong> ${eventCity}</p>
                             <p class="text-muted mb-1"><strong>Data:</strong> ${dateStr}</p>
+                            ${ticketsHtml}
                         </div>
                     </div>
                 `;
