@@ -2,22 +2,34 @@ from flask import Blueprint, jsonify, request
 from backend.app.extensions import db, redis, neo4
 from datetime import datetime, timezone
 
+# URL prefix is /api/v1
 purchase_bp = Blueprint('purchase', __name__, url_prefix='/api/v1')
 
-@purchase_bp.post("/purchase")  # ✅ FIXED: Removed duplicate /api/v1
+
+# FINAL URL: /api/v1 + "/purchase" = /api/v1/purchase
+@purchase_bp.route("/purchase", methods=["POST", "OPTIONS"])
 def purchase():
-    payload = request.get_json(force=True)
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        return ("", 200)
+
+    payload = request.get_json(force=True) or {}
     vartotojo_id = payload.get("vartotojo_id")
     renginys_id = payload.get("renginys_id")
     bilieto_tipas_id = payload.get("bilieto_tipas_id")
     kiekis = int(payload.get("kiekis", 1))
-    
 
     if not (vartotojo_id and renginys_id and kiekis > 0):
-        return jsonify({"ok": False, "error": "Provide vartotojo_id, renginys_id, and kiekis>0."})
+        return jsonify({
+            "ok": False,
+            "error": "Provide vartotojo_id, renginys_id, and kiekis>0."
+        })
 
     if not db.vartotojai.find_one({"_id": vartotojo_id}):
-        return jsonify({"ok": False, "error": "User not found. Register first."})
+        return jsonify({
+            "ok": False,
+            "error": "User not found. Register first."
+        })
 
     with db.client.start_session() as s:
         with s.start_transaction():
@@ -29,10 +41,13 @@ def purchase():
                 ev = db.renginiai.find_one({"_id": renginys_id}, session=s)
                 if not ev:
                     return jsonify({"ok": False, "error": "Event not found."})
-                
+
             tickets = ev.get("Bilieto_tipas") or []
             if not tickets:
-                return jsonify({"ok": False, "error": "This event has no ticket types."})
+                return jsonify({
+                    "ok": False,
+                    "error": "This event has no ticket types."
+                })
 
             print(tickets)
             chosen = None
@@ -41,23 +56,38 @@ def purchase():
                 if ticket_type.get("Bilieto_tipas_id") == bilieto_tipas_id:
                     chosen = ticket_type
                     break
-            
-            # ✅ ADDED: Check if ticket type was found
+
             if not chosen:
-                return jsonify({"ok": False, "error": f"Ticket type {bilieto_tipas_id} not found for this event."})
+                return jsonify({
+                    "ok": False,
+                    "error": "Ticket type not found for this event."
+                })
 
             likutis = int(chosen.get("Likutis", 0))
             if kiekis > likutis:
-                return jsonify({"ok": False, "error": f"Not enough tickets. Remainder: {likutis}"})
+                return jsonify({
+                    "ok": False,
+                    "error": f"Not enough tickets. Remainder: {likutis}"
+                })
 
             res = db.renginiai.update_one(
-                {"_id": renginys_id,
-                    "Bilieto_tipas": {"$elemMatch": {"Bilieto_tipas_id": bilieto_tipas_id, "Likutis": {"$gte": kiekis}}}},
+                {
+                    "_id": renginys_id,
+                    "Bilieto_tipas": {
+                        "$elemMatch": {
+                            "Bilieto_tipas_id": bilieto_tipas_id,
+                            "Likutis": {"$gte": kiekis}
+                        }
+                    }
+                },
                 {"$inc": {"Bilieto_tipas.$.Likutis": -kiekis}},
                 session=s
             )
             if res.modified_count != 1:
-                return jsonify({"ok": False, "error": "Concurrent update issue."})
+                return jsonify({
+                    "ok": False,
+                    "error": "Concurrent update issue."
+                })
 
             order = {
                 "vartotojo_id": vartotojo_id,
@@ -70,7 +100,7 @@ def purchase():
                 }]
             }
             ins = db.uzsakymai.insert_one(order, session=s)
-            
+
             # Aktyvi invalidacija
             redis.invalidate_cache(cache_key)
 
@@ -92,4 +122,13 @@ def purchase():
         print(f"⚠️ Failed to record in Neo4j: {e}")
         # Don't fail the purchase if Neo4j fails
 
-    return jsonify({"ok": True, "message": "Purchase successful.", "order_id": str(ins.inserted_id), "order": order})
+    # 🔧 Mongo į order dictą įdeda _id: ObjectId(...) → paverčiam į str, kad būtų serializuojama
+    if "_id" in order:
+        order["_id"] = str(order["_id"])
+
+    return jsonify({
+        "ok": True,
+        "message": "Purchase successful.",
+        "order_id": str(ins.inserted_id),
+        "order": order,
+    })

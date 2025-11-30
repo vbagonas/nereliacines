@@ -108,9 +108,17 @@
         </div>
     </div>  
 
+    <!-- Siūlome sekti organizatorius -->
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center text-white mb-4">Siūlome sekti organizatorius</h1>
+        <div id="organizersContainer" class="row g-4 justify-content-center">
+            <p class="text-center text-white fs-6">Kraunami rekomenduojami organizatoriai...</p>
+        </div>
+    </div>
+
     <!-- Artimiausi rekomenduojami renginiai -->
     <div class="container mt-5 mb-5">
-        <h1 class="text-center text-white mb-4">Artimiausi rekomenduojami renginiai</h1>
+        <h1 class="text-center text-white mb-4">Rekomenduojami renginiai</h1>
         <div id="recommendedContainer" class="row g-4 justify-content-center">
             <p class="text-center text-white fs-6">Kraunami artimiausi rekomenduojami renginiai...</p>
         </div>
@@ -135,6 +143,8 @@
         const CART_PUT_URL     = `${API_V1}/cart`;
         const CART_DELETE_URL  = (owner) => `${API_V1}/cart?owner_id=${encodeURIComponent(owner)}`;
 
+        const ORGANIZERS_URL   = (owner) => `${API_V1}/recommendations/organizers/${encodeURIComponent(owner)}`;
+
         function getOwnerId() {
             const email = localStorage.getItem('ownerId');
             if (!email) {
@@ -145,9 +155,13 @@
             return email.trim().toLowerCase();
         }
 
+        // -----------------------------
+        // Global state
+        // -----------------------------
         const Catalog = new Map();
         let serverCart = {};
 
+        // ✅ SVARBU: ŠI FUNKCIJA TURI RODYTI BILIETUS!
         async function loadEvents() {
             try {
                 const response = await fetch(EVENTS_URL);
@@ -173,6 +187,7 @@
                     const even_data = await response.json();
                     const event = even_data.event;
                     
+                    // Filter past events
                     const eventDate = new Date(event.Data);
                     if (eventDate < new Date()) {
                         continue;
@@ -237,6 +252,10 @@
                 console.error('Error fetching events:', err);
             }
         }
+
+        // -----------------------------
+        // CART API CALLS
+        // -----------------------------
 
         function parseCartKey(cartKey) {
             const sep = cartKey.includes('#') ? '#' : (cartKey.includes(':') ? ':' : null);
@@ -450,6 +469,7 @@
                 await clearCart();
                 await loadEvents();
                 await loadRecommendedEvents();
+                await loadRecommendedOrganizers();
             } catch (err) {
                 console.error(err);
                 alert(String(err.message || err));
@@ -502,36 +522,61 @@
             });
         }
 
+        // ---------- Rekomenduojami renginiai (su fallback į Top3) ----------
         async function loadRecommendedEvents() {
             const userId = getOwnerId();
+            const recommendedContainer = document.getElementById('recommendedContainer').closest('.container');
+            const top3Container = document.getElementById('top3Container').closest('.container');
+
             try {
                 const response = await fetch(`http://localhost:8080/api/v1/recommendations/upcoming/${encodeURIComponent(userId)}`);
                 
                 if (!response.ok) {
-                    console.log('Upcoming recommendations API failed');
-                    document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
-                    document.getElementById('top3Container').closest('.container').style.display = 'block';
-                    return;
+                    console.log('Upcoming recommendations API failed, falling back to Top3 as recommendations');
+                    return await showTop3AsRecommendations(recommendedContainer, top3Container);
                 }
                 
                 const data = await response.json();
-                const events = Array.isArray(data) ? data : [];
-                
+                let events = Array.isArray(data) ? data : (data.data || []);
+
                 if (events.length > 0) {
-                    console.log('User has purchase history - showing upcoming recommendations (12 months)');
-                    document.getElementById('recommendedContainer').closest('.container').style.display = 'block';
-                    document.getElementById('top3Container').closest('.container').style.display = 'none';
+                    console.log('Showing upcoming recommended events');
+                    recommendedContainer.style.display = 'block';
+                    top3Container.style.display = 'none';
                     renderRecommendedEvents(events);
                 } else {
-                    console.log('No upcoming recommendations - showing top3');
-                    document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
-                    document.getElementById('top3Container').closest('.container').style.display = 'block';
+                    console.log('No upcoming recommendations, using Top3 as recommendations');
+                    await showTop3AsRecommendations(recommendedContainer, top3Container);
                 }
                 
             } catch (err) {
                 console.error('Error fetching upcoming recommended events:', err);
-                document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
-                document.getElementById('top3Container').closest('.container').style.display = 'block';
+                await showTop3AsRecommendations(recommendedContainer, top3Container);
+            }
+        }
+
+        async function showTop3AsRecommendations(recommendedContainer, top3Container) {
+            try {
+                const resp = await fetch(TOP3_URL);
+                if (!resp.ok) {
+                    recommendedContainer.style.display = 'none';
+                    top3Container.style.display = 'block';
+                    return;
+                }
+                const data = await resp.json();
+                const events = data.data || [];
+
+                if (events.length > 0) {
+                    recommendedContainer.style.display = 'block';
+                    top3Container.style.display = 'none';
+                    renderRecommendedEvents(events);
+                } else {
+                    recommendedContainer.style.display = 'none';
+                    top3Container.style.display = 'block';
+                }
+            } catch {
+                recommendedContainer.style.display = 'none';
+                top3Container.style.display = 'block';
             }
         }
 
@@ -540,11 +585,13 @@
             container.innerHTML = '';
 
             if (!events || events.length === 0) {
-                container.innerHTML = '<p class="text-center text-white fs-6">Nėra artimų rekomenduojamų renginių (12 mėn).</p>';
+                container.innerHTML = '<p class="text-center text-white fs-6">Nėra artimų rekomenduojamų renginių.</p>';
                 return;
             }
 
-            events.forEach(event => {
+            const limitedEvents = events.slice(0, 3);
+
+            limitedEvents.forEach(event => {
                 const card = document.createElement('div');
                 card.className = 'col-md-4 col-sm-6';
 
@@ -574,10 +621,131 @@
             });
         }
 
+        // -----------------------------
+        // Organizatorių sekimas (localStorage)
+        // -----------------------------
+        const FOLLOW_KEY = 'followedOrganizers';
+
+        function getFollowedOrganizers() {
+            try {
+                return JSON.parse(localStorage.getItem(FOLLOW_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        function setFollowedOrganizers(list) {
+            localStorage.setItem(FOLLOW_KEY, JSON.stringify(list));
+        }
+
+        function isOrganizerFollowed(name, email) {
+            const list = getFollowedOrganizers();
+            return list.some(o => o.name === name && o.email === email);
+        }
+
+        function toggleFollowOrganizer(button) {
+            const name = button.dataset.name;
+            const email = button.dataset.email || '';
+
+            let list = getFollowedOrganizers();
+            const idx = list.findIndex(o => o.name === name && o.email === email);
+
+            if (idx >= 0) {
+                // jau sekamas -> nustojam sekti
+                list.splice(idx, 1);
+                button.innerHTML = '<i class="bi bi-heart"></i> Sekti';
+            } else {
+                // pradėti sekti
+                list.push({ name, email });
+                button.innerHTML = '<i class="bi bi-heart-fill"></i> Sekama';
+            }
+
+            setFollowedOrganizers(list);
+        }
+
+        // -----------------------------
+        // Organizatorių rekomendacijos
+        // -----------------------------
+        async function loadRecommendedOrganizers() {
+            const container = document.getElementById('organizersContainer');
+            if (!container) return;
+
+            const section = container.closest('.container');
+
+            try {
+                const userId = getOwnerId();
+                const res = await fetch(ORGANIZERS_URL(userId));
+
+                if (!res.ok) {
+                    console.error('Failed to fetch organizers');
+                    if (section) section.style.display = 'none';
+                    return;
+                }
+
+                const data = await res.json();
+                const organizers = Array.isArray(data) ? data : (data.data || []);
+
+                // jei backend grąžina tuščią masyvą (pvz. nėra pirkimų) – slepiam visą bloką
+                if (!organizers || organizers.length === 0) {
+                    if (section) section.style.display = 'none';
+                    return;
+                }
+
+                if (section) section.style.display = 'block';
+                renderOrganizers(organizers);
+            } catch (err) {
+                console.error('Error fetching organizers:', err);
+                if (section) section.style.display = 'none';
+            }
+        }
+
+        function renderOrganizers(organizers) {
+            const container = document.getElementById('organizersContainer');
+            container.innerHTML = '';
+
+            if (!organizers || organizers.length === 0) {
+                container.innerHTML = '<p class="text-center text-white fs-6">Kol kas neturime pasiūlymų organizatoriams.</p>';
+                return;
+            }
+
+            organizers.forEach(org => {
+                const col = document.createElement('div');
+                col.className = 'col-md-4 col-sm-6';
+
+                const name = org.name || 'Organizatorius';
+                const email = org.email || '';
+                const score = org.score ?? ''; // unused, but ok to keep
+
+                const followed = isOrganizerFollowed(name, email);
+                const heartIcon = followed ? 'bi-heart-fill' : 'bi-heart';
+                const heartText = followed ? 'Sekama' : 'Sekti';
+
+                col.innerHTML = `
+                    <div class="card p-3 h-100 shadow-sm">
+                        <div class="card-body text-center d-flex flex-column align-items-center">
+                            <h5 class="card-title fw-bold mb-3">${name}</h5>
+                            ${email ? `<p class="text-muted mb-3"><i class="bi bi-envelope"></i> ${email}</p>` : ''}
+
+                            <button
+                                class="btn btn-outline-danger btn-sm mt-auto"
+                                data-name="${name}"
+                                data-email="${email}"
+                                onclick="toggleFollowOrganizer(this)"
+                            >
+                                <i class="bi ${heartIcon}"></i> ${heartText}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadEvents();
             loadTop3Events();
             loadRecommendedEvents();
+            loadRecommendedOrganizers();
             loadCartFromServer(); 
         });
     </script>

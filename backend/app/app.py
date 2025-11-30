@@ -3,8 +3,14 @@ from flask_cors import CORS
 from datetime import datetime, date
 from flask.json.provider import DefaultJSONProvider
 from cassandra.util import Date
-from bson import ObjectId  # ✅ ADDED
+from neo4j.time import DateTime as Neo4jDateTime   # 👈 add this
 import uuid
+from neo4j import GraphDatabase
+from pathlib import Path
+import yaml
+import json
+from collections import Counter
+
 
 from backend.app.routes.health import health_bp
 from backend.app.routes.auth import auth_bp
@@ -20,22 +26,21 @@ from backend.graph_db.mongo_to_neo_importer import MongoToNeoImporter
 
 class CustomJSONProvider(DefaultJSONProvider):
     def default(self, obj):
-        # ✅ ADDED: ObjectId support
-        if isinstance(obj, ObjectId):
-            return str(obj)
         if isinstance(obj, Date):
-            return str(obj)
+            return str(obj)  # paprastas ir patikimas sprendimas
+
+        # 👇 NEW: handle Neo4j DateTime objects
+        if isinstance(obj, Neo4jDateTime):
+            # Neo4j DateTime usually has iso_format(); fall back to str if not
+            return obj.iso_format() if hasattr(obj, "iso_format") else str(obj)
+
         if isinstance(obj, (datetime, date)):
             return obj.isoformat()
         if isinstance(obj, uuid.UUID):
             return str(obj)
-        # Neo4j DateTime support
-        if hasattr(obj, 'iso_format'):
-            return obj.iso_format()
-        obj_type = str(type(obj))
-        if 'neo4j' in obj_type.lower() or 'DateTime' in obj_type:
-            return str(obj)
+
         return super().default(obj)
+
     
     def dumps(self, obj, **kwargs):
         # ensure_ascii=False leis rodyti lietuviÅ¡kas raides tiesiogiai

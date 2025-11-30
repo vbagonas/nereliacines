@@ -169,7 +169,8 @@ class MongoToNeoImporter:
 
     def run(self):
         print("Import started")
-        self.neo.session.run("MATCH (n) DETACH DELETE n")  # visada išvalome grafą
+        # vietoj senos self.neo.session.run(...)
+        self.neo._run_query("MATCH (n) DETACH DELETE n")  # visada išvalome grafą
         self.import_users()
         self.import_events()
         self.import_orders()

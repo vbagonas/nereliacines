@@ -3,30 +3,47 @@ from backend.app.extensions import neo4
 
 recommendations_bp = Blueprint('recommendations', __name__, url_prefix='/api/v1')
 
+
 @recommendations_bp.get("/recommendations/<user_id>")
 def get_recommendations(user_id):
-    """
-    Simple recommendations - naudoja Neo4j collaborative filtering
-    """
-    try:
-        # Naudojam graph.py metodą
+    """Get all recommended events for user (riboto gylio)"""
+    if neo4.has_purchase_history(user_id):
         events = neo4.recommend_collaborative(user_id)
-        
-        print(f"✅ Neo4j returned {len(events)} recommendations for {user_id}")
-        
-        # Konvertuojam DateTime → string
-        for event in events:
-            for key, value in event.items():
-                if hasattr(value, 'iso_format'):
-                    event[key] = value.iso_format()
-                elif 'DateTime' in str(type(value)):
-                    event[key] = str(value)
-        
-        print(f"📤 Sending {len(events)} events to frontend")
-        return jsonify(events), 200
-        
-    except Exception as e:
-        print(f"❌ Error in recommendations: {e}")
-        import traceback
-        traceback.print_exc()
+    else:
+        # be istorijos – tegul frontend rodo Top3
+        events = []
+
+    return jsonify(events), 200
+
+
+@recommendations_bp.get("/recommendations/upcoming/<user_id>")
+def get_upcoming_recommendations(user_id):
+    """
+    Artimiausi rekomenduojami renginiai (24 mėn į priekį).
+
+    Jei vartotojas turi istoriją – pirmiausia bandom collaborative,
+    jeigu nieko nėra – imam paprastus artimiausius.
+    Jei istorijos nėra – irgi imam artimiausius.
+    """
+    if neo4.has_purchase_history(user_id):
+        events = neo4.recommend_collaborative_upcoming(user_id)
+        if not events:
+            events = neo4.get_upcoming_events(months=24, limit=5)
+    else:
+        events = neo4.get_upcoming_events(months=24, limit=5)
+
+    return jsonify(events), 200
+
+
+@recommendations_bp.get("/recommendations/organizers/<user_id>")
+def get_recommended_organizers(user_id):
+    """
+    Rekomenduojami organizatoriai, naudojant
+    neo4.recommend_organizers_unlimited (neribotas gylis / laikas).
+    """
+    # jei vartotojas nieko nepirko – grąžinam tuščią, frontend gali slėpti bloką
+    if not neo4.has_purchase_history(user_id):
         return jsonify([]), 200
+
+    organizers = neo4.recommend_organizers_unlimited(user_id, limit=3)
+    return jsonify(organizers), 200
