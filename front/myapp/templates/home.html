@@ -108,14 +108,15 @@
         </div>
     </div>  
 
-    <!-- ✅ NAUJAS: Rekomenduojami renginiai -->
+    <!-- Artimiausi rekomenduojami renginiai -->
     <div class="container mt-5 mb-5">
-        <h1 class="text-center text-white mb-4">Rekomenduojami renginiai</h1>
+        <h1 class="text-center text-white mb-4">Artimiausi rekomenduojami renginiai</h1>
         <div id="recommendedContainer" class="row g-4 justify-content-center">
-            <p class="text-center text-white fs-6">Kraunami rekomenduojami renginiai...</p>
+            <p class="text-center text-white fs-6">Kraunami artimiausi rekomenduojami renginiai...</p>
         </div>
     </div>
 
+    <!-- Artimiausi renginiai (SU BILIETAIS!) -->
     <div class="container">
         <h1 class="text-center text-white mb-4">Artimiausi renginiai</h1>
         <div id="eventsContainer" class="row g-4 justify-content-center"></div>
@@ -127,7 +128,6 @@
         const EVENTS_URL = 'http://localhost:8080/api/v1/events';
         const PURCHASE_URL = 'http://localhost:8080/api/v1/purchase';
         const TOP3_URL = 'http://localhost:8080/api/v1/analytics/top3-by-tickets';
-
 
         const API_V1 = 'http://localhost:8080/api/v1';
         const CART_GET_URL     = (owner) => `${API_V1}/cart?owner_id=${encodeURIComponent(owner)}`;
@@ -145,11 +145,8 @@
             return email.trim().toLowerCase();
         }
 
-        // -----------------------------
-        // Global state
-        // -----------------------------
-        const Catalog = new Map();   // ticketId -> {name, price}
-        let serverCart = {};         // { ticketId: qty }
+        const Catalog = new Map();
+        let serverCart = {};
 
         async function loadEvents() {
             try {
@@ -166,7 +163,6 @@
                     return;
                 }
 
-                // ✅ Proper async loop
                 for (const eventId of events.event_ids) {
                     const response = await fetch(`http://localhost:8080/api/v1/events/${eventId}`);
                     
@@ -177,7 +173,6 @@
                     const even_data = await response.json();
                     const event = even_data.event;
                     
-                    // ✅ FILTER: Skip past events
                     const eventDate = new Date(event.Data);
                     if (eventDate < new Date()) {
                         continue;
@@ -185,7 +180,6 @@
                     
                     console.log('Rendering event:', event);
 
-                    // Create card
                     const card = document.createElement('div');
                     card.className = 'col-md-4 col-sm-6';
 
@@ -243,9 +237,6 @@
                 console.error('Error fetching events:', err);
             }
         }
-        // -----------------------------
-        // CART API CALLS
-        // -----------------------------
 
         function parseCartKey(cartKey) {
             const sep = cartKey.includes('#') ? '#' : (cartKey.includes(':') ? ':' : null);
@@ -265,10 +256,9 @@
             const j = await res.json();
             serverCart = j.items || {};
 
-            // --- Build Catalog by fetching each event only once ---
             const entries = Object.entries(serverCart);
             const eventIds = new Set();
-            const pairs = []; // [{cartKey, eventId, ticketId}]
+            const pairs = [];
             for (const [cartKey, qty] of entries) {
                 const { eventId, ticketId } = parseCartKey(cartKey);
                 if (!eventId || !ticketId) continue;
@@ -284,10 +274,9 @@
                     const evJson = await evRes.json();
                     const event = evJson.event || {};
                     eventMap.set(eid, event);
-                } catch {e}
+                } catch (e) {}
             }
 
-            // Fill Catalog for each cart line from the fetched events
             for (const { cartKey, eventId, ticketId } of pairs) {
                 const ev = eventMap.get(eventId);
                 if (!ev) continue;
@@ -312,7 +301,7 @@
         }
 
         async function addToCart(ticketId, price, name, eventId) {
-            const cartKey = `${eventId}:${ticketId}`;  // Composite key
+            const cartKey = `${eventId}:${ticketId}`;
             
             const existing = Catalog.get(cartKey) || {};
             Catalog.set(cartKey, {
@@ -320,14 +309,14 @@
                 name: name ?? existing.name ?? `Bilietas ${ticketId}`,
                 price: Number(price ?? existing.price ?? 0),
                 eventId: eventId,
-                ticketId: ticketId  // Store original ticketId separately
+                ticketId: ticketId
             });
 
             const owner = getOwnerId();
             const res = await fetch(CART_POST_URL, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ owner_id: owner, product_id: cartKey, qty: 1 })  // Use composite key
+                body: JSON.stringify({ owner_id: owner, product_id: cartKey, qty: 1 })
             });
 
             const data = await res.json();
@@ -363,9 +352,6 @@
             renderCart();
         }
 
-        // -----------------------------
-        // CART RENDERING
-        // -----------------------------
         function renderCart() {
             const cartList    = document.getElementById('cart-items');
             const totalSpan   = document.getElementById('cart-total');
@@ -381,7 +367,6 @@
                 return;
             }
 
-            // Clear cart first
             cartList.innerHTML = '';
             let total = 0;
             let count = 0;
@@ -419,9 +404,6 @@
             purchaseBtn.disabled = entries.length === 0;
         }
 
-        // -----------------------------
-        // Purchase flow (uses Redis cart)
-        // -----------------------------
         async function purchaseTickets() {
             const owner = getOwnerId();
             const purchaseBtn = document.getElementById('purchase-btn');
@@ -437,7 +419,7 @@
             purchaseBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Apdorojama...';
 
             try {
-                for (const [cartKey, qtyStr] of entries) {  // cartKey is "eventId:ticketId"
+                for (const [cartKey, qtyStr] of entries) {
                     const qty = Number(qtyStr || 0);
                     if (qty <= 0) continue;
 
@@ -452,7 +434,7 @@
                         body: JSON.stringify({
                             vartotojo_id: owner,
                             renginys_id: meta.eventId,
-                            bilieto_tipas_id: meta.ticketId,  // ✅ Send original ticketId, not composite key
+                            bilieto_tipas_id: meta.ticketId,
                             kiekis: qty
                         })
                     });
@@ -467,6 +449,7 @@
                 alert('Bilietai sėkmingai nupirkti!');
                 await clearCart();
                 await loadEvents();
+                await loadRecommendedEvents();
             } catch (err) {
                 console.error(err);
                 alert(String(err.message || err));
@@ -475,7 +458,6 @@
                 purchaseBtn.innerHTML = oldHtml;
             }
         }
-
 
         async function loadTop3Events() {
             try {
@@ -520,62 +502,45 @@
             });
         }
 
-        // ✅ NAUJAS: Load recommended events (rodo tik jei user turi purchases)
         async function loadRecommendedEvents() {
             const userId = getOwnerId();
             try {
-                const response = await fetch(`http://localhost:8080/api/v1/recommendations/${encodeURIComponent(userId)}`);
+                const response = await fetch(`http://localhost:8080/api/v1/recommendations/upcoming/${encodeURIComponent(userId)}`);
                 
                 if (!response.ok) {
-                    console.log('Recommendations API failed');
-                    // Slepiame recommendations sekciją jei API neveikia
+                    console.log('Upcoming recommendations API failed');
                     document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
-                    // Rodom Top 3 kaip fallback
                     document.getElementById('top3Container').closest('.container').style.display = 'block';
                     return;
                 }
                 
                 const data = await response.json();
-                
-                // Tikrinam ar yra recommendations (tai reiškia kad user turi purchases)
-                const events = Array.isArray(data) ? data : (data.data || []);
+                const events = Array.isArray(data) ? data : [];
                 
                 if (events.length > 0) {
-                    // ✅ User TURI purchases - rodom RECOMMENDATIONS, slepiame TOP3
-                    console.log('User has purchase history - showing recommendations');
+                    console.log('User has purchase history - showing upcoming recommendations (12 months)');
                     document.getElementById('recommendedContainer').closest('.container').style.display = 'block';
                     document.getElementById('top3Container').closest('.container').style.display = 'none';
-                    renderRecommendedEvents(data);
+                    renderRecommendedEvents(events);
                 } else {
-                    // ❌ User NETURI purchases - rodom TOP3, slepiame RECOMMENDATIONS
-                    console.log('User has no purchase history - showing top3');
+                    console.log('No upcoming recommendations - showing top3');
                     document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
                     document.getElementById('top3Container').closest('.container').style.display = 'block';
                 }
                 
             } catch (err) {
-                console.error('Error fetching recommended events:', err);
-                // Klaidos atveju rodom Top 3, slepiame Recommendations
+                console.error('Error fetching upcoming recommended events:', err);
                 document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
                 document.getElementById('top3Container').closest('.container').style.display = 'block';
             }
         }
 
-        // ✅ NAUJAS: Render recommended events (same style as Top 3)
-        function renderRecommendedEvents(data) {
+        function renderRecommendedEvents(events) {
             const container = document.getElementById('recommendedContainer');
             container.innerHTML = '';
 
-            // Suprantame ABIEJUS formatus:
-            // 1. Neo4j: tiesiog array [{title, city, event_date}, ...]
-            // 2. MongoDB top3: {count: 3, data: [{Pavadinimas, Miestas, Data}, ...]}
-            let events = data;
-            if (data && data.data) {
-                events = data.data;  // MongoDB formatas
-            }
-
             if (!events || events.length === 0) {
-                container.innerHTML = '<p class="text-center text-white fs-6">Nėra rekomenduojamų renginių.</p>';
+                container.innerHTML = '<p class="text-center text-white fs-6">Nėra artimų rekomenduojamų renginių (12 mėn).</p>';
                 return;
             }
 
@@ -583,7 +548,6 @@
                 const card = document.createElement('div');
                 card.className = 'col-md-4 col-sm-6';
 
-                // Suprantame ABIEJUS field name sistemas
                 const eventName = event.title || event.Pavadinimas || event.pavadinimas || 'Renginys';
                 const eventCity = event.city || event.Miestas || event.miestas || '';
                 const eventDate = event.event_date || event.Data || event.data || '';
@@ -611,14 +575,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // ✅ Pradžioje slepiame abi sekcijas (Top 3 ir Recommendations)
-            // Funkcija loadRecommendedEvents() nuspręs kurią rodyti
-            document.getElementById('top3Container').closest('.container').style.display = 'none';
-            document.getElementById('recommendedContainer').closest('.container').style.display = 'none';
-            
             loadEvents();
             loadTop3Events();
-            loadRecommendedEvents();  // ✅ Ši funkcija nuspręs kurią sekciją rodyti
+            loadRecommendedEvents();
             loadCartFromServer(); 
         });
     </script>

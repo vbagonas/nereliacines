@@ -3,6 +3,7 @@ from flask_cors import CORS
 from datetime import datetime, date
 from flask.json.provider import DefaultJSONProvider
 from cassandra.util import Date
+from bson import ObjectId  # ✅ ADDED
 import uuid
 
 from backend.app.routes.health import health_bp
@@ -19,23 +20,21 @@ from backend.graph_db.mongo_to_neo_importer import MongoToNeoImporter
 
 class CustomJSONProvider(DefaultJSONProvider):
     def default(self, obj):
+        # ✅ ADDED: ObjectId support
+        if isinstance(obj, ObjectId):
+            return str(obj)
         if isinstance(obj, Date):
-            return str(obj)  # paprastas ir patikimas sprendimas
+            return str(obj)
         if isinstance(obj, (datetime, date)):
             return obj.isoformat()
         if isinstance(obj, uuid.UUID):
             return str(obj)
-        
-        # ✅ NAUJAS: Neo4j DateTime support
-        # Neo4j DateTime objektai turi iso_format() metodą
+        # Neo4j DateTime support
         if hasattr(obj, 'iso_format'):
             return obj.iso_format()
-        
-        # Arba tiesiog konvertuojam į string jei tai Neo4j objektas
         obj_type = str(type(obj))
         if 'neo4j' in obj_type.lower() or 'DateTime' in obj_type:
             return str(obj)
-        
         return super().default(obj)
     
     def dumps(self, obj, **kwargs):
@@ -59,7 +58,8 @@ def create_app():
     app.register_blueprint(cart_bp)
     app.register_blueprint(analytics_bp)
     app.register_blueprint(questions_bp)
-    app.register_blueprint(recommendations_bp)  # ✅ NAUJAS
+    app.register_blueprint(recommendations_bp)  # ✅ ADDED
+
     
     # Importuojam iš Mongo → Neo4j serveriui startuojant
     mongo_importer = MongoToNeoImporter()

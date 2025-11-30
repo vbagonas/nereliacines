@@ -1,9 +1,10 @@
 from flask import Blueprint, jsonify, request
 from backend.app.extensions import db, redis, neo4
 from datetime import datetime, timezone
+
 purchase_bp = Blueprint('purchase', __name__, url_prefix='/api/v1')
 
-@purchase_bp.post("/api/v1/purchase")
+@purchase_bp.post("/purchase")  # ✅ FIXED: Removed duplicate /api/v1
 def purchase():
     payload = request.get_json(force=True)
     vartotojo_id = payload.get("vartotojo_id")
@@ -34,11 +35,16 @@ def purchase():
                 return jsonify({"ok": False, "error": "This event has no ticket types."})
 
             print(tickets)
+            chosen = None
             for ticket_type in tickets:
                 print(ticket_type.get("Bilieto_tipas_id"), bilieto_tipas_id)
                 if ticket_type.get("Bilieto_tipas_id") == bilieto_tipas_id:
                     chosen = ticket_type
                     break
+            
+            # ✅ ADDED: Check if ticket type was found
+            if not chosen:
+                return jsonify({"ok": False, "error": f"Ticket type {bilieto_tipas_id} not found for this event."})
 
             likutis = int(chosen.get("Likutis", 0))
             if kiekis > likutis:
@@ -78,8 +84,12 @@ def purchase():
                 valid_ids = [eid for eid in valid_ids if eid != str(renginys_id)]
                 redis.set_cache("valid_events", valid_ids)
 
-
-    # pridedam i neo4j
-    neo4.add_purchase(vartotojo_id, renginys_id)
+    # ✅ ADDED: Record purchase in Neo4j for recommendations
+    try:
+        neo4.add_purchase(vartotojo_id, renginys_id)
+        print(f"✅ Recorded purchase in Neo4j: {vartotojo_id} -> {renginys_id}")
+    except Exception as e:
+        print(f"⚠️ Failed to record in Neo4j: {e}")
+        # Don't fail the purchase if Neo4j fails
 
     return jsonify({"ok": True, "message": "Purchase successful.", "order_id": str(ins.inserted_id), "order": order})

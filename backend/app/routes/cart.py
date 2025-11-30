@@ -14,7 +14,7 @@ def cart_get():
     items = redis.client.hgetall(cart_key(owner_id)) or {}
     return jsonify({"ok": True, "items": items})
 
-@cart_bp.post("/api/v1/cart")
+@cart_bp.post("/cart")  # ✅ FIXED: Removed duplicate /api/v1
 def cart_add():
     """
     Body: { "owner_id": "...", "product_id": "...", "qty": 1 }
@@ -38,7 +38,7 @@ def cart_add():
 
     return jsonify({"ok": True, "items": redis.client.hgetall(key) or {}})
 
-@cart_bp.put("/api/v1/cart")
+@cart_bp.put("/cart")  # ✅ FIXED: Removed duplicate /api/v1
 def cart_set():
     """
     Body: { "owner_id": "...", "product_id": "...", "qty": 3 }
@@ -61,7 +61,7 @@ def cart_set():
 
     return jsonify({"ok": True, "items": redis.client.hgetall(key) or {}})
 
-@cart_bp.delete("/api/v1/cart")
+@cart_bp.delete("/cart")  # ✅ FIXED: Removed duplicate /api/v1
 def cart_clear():
     """
     Query: ?owner_id=...

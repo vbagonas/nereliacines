@@ -102,7 +102,7 @@ class GraphDB():
             MATCH (other)-[:BOUGHT]->(rec:Event)
             WHERE NOT (u)-[:BOUGHT]->(rec)
             AND datetime(rec.data) >= datetime()
-            AND datetime(rec.data) <= datetime() + duration({months: 2})
+            AND datetime(rec.data) <= datetime() + duration({months: 12})
             WITH rec, COUNT(DISTINCT other) as similarity_score
             ORDER BY similarity_score DESC
             LIMIT 5

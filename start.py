@@ -4,7 +4,8 @@ import sys
 processes = []
 
 FLASK_PORT = 8080
-DJANGO_PORT = 8000
+# DJANGO_PORT = 8000
+DJANGO_PORT = 8001
 
 
 try:
