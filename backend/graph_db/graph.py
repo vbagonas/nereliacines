@@ -70,10 +70,10 @@ class GraphDB():
     def add_purchase(self, user_id, event_id, event_date=None):
         """Record purchase relationship between user and event"""
         query = """
-            MERGE (u:User {id: $user_id})
-            MERGE (e:Event {id: $event_id})
-            MERGE (u)-[p:BOUGHT]->(e)
-            ON CREATE SET p.timestamp = timestamp()
+            MERGE (u:User {id: $user_id})   
+            MERGE (e:Event {id: $event_id}) 
+            MERGE (u)-[p:BOUGHT]->(e)      
+            ON CREATE SET p.timestamp = timestamp() 
         """
         if event_date:
             query += " SET e.data = datetime($event_date)"
@@ -90,12 +90,12 @@ class GraphDB():
     def recommend_collaborative(self, user_id):
         """All recommended events based on similar users"""
         query = """
-            MATCH (u:User {id: $user_id})-[:BOUGHT]->(e:Event)
-            MATCH (other:User)-[:BOUGHT]->(e)
+            MATCH (u:User {id: $user_id})-[:BOUGHT]->(e:Event) 
+            MATCH (other:User)-[:BOUGHT]->(e)  
             MATCH (other)-[:BOUGHT]->(rec:Event)
-            WHERE NOT (u)-[:BOUGHT]->(rec)
-            WITH rec, COUNT(DISTINCT other) as similarity_score
-            ORDER BY similarity_score DESC
+            WHERE NOT (u)-[:BOUGHT]->(rec)      
+            WITH rec, COUNT(DISTINCT other) as similarity_score 
+            ORDER BY similarity_score DESC  
             LIMIT 10
             RETURN rec.id as event_id,
                    rec.data as event_date,
@@ -118,8 +118,8 @@ class GraphDB():
             MATCH (other:User)-[:BOUGHT]->(e)
             MATCH (other)-[:BOUGHT]->(rec:Event)
             WHERE NOT (u)-[:BOUGHT]->(rec)
-              AND datetime(rec.data) >= datetime()
-              AND datetime(rec.data) <= datetime() + duration({months: 24})
+              AND datetime(rec.data) >= datetime() 
+              AND datetime(rec.data) <= datetime() + duration({months: 24})  
             WITH rec, COUNT(DISTINCT other) as similarity_score
             ORDER BY similarity_score DESC
             LIMIT 5
@@ -176,9 +176,9 @@ class GraphDB():
     def get_upcoming_events(self, months=2, limit=5):
         """Get upcoming events within specified time range"""
         query = """
-            MATCH (e:Event)
+            MATCH (e:Event) 
             WHERE datetime(e.data) >= datetime()
-              AND datetime(e.data) <= datetime() + duration({months: $months})
+              AND datetime(e.data) <= datetime() + duration({months: $months}) 
             RETURN e.id as event_id,
                    e.data as event_date,
                    e.pavadinimas as title,
@@ -190,8 +190,8 @@ class GraphDB():
                    e.renginio_trukme as duration,
                    e.bilieto_tipai as ticket_types,
                    e.organizatoriai as organizers
-            ORDER BY e.data
-            LIMIT $limit
+            ORDER BY e.data 
+            LIMIT $limit - Top N
         """
 
         return self._run_query(query, {
@@ -199,29 +199,35 @@ class GraphDB():
             'limit': limit
         })
 
-        # -------------------------
-    # Organizer recommendations (UNLIMITED, SIMPLE)
     # -------------------------
-    def recommend_organizers_unlimited(self, user_id, limit=3):
+    # Organizer recommendations (MULTI-HOP)
+    # -------------------------
+    def recommend_organizers_unlimited(self, user_id, limit=3, max_depth=6):
         """
-        Recommend organizers based on the collaborative graph of purchases.
+        Recommend organizers based on a multi-hop collaborative graph of purchases.
 
-        Logic (simple, but works and ignores event dates so past events COUNT):
+        We walk the User–Event graph up to `max_depth` hops:
 
-        1) Take events this user has bought.
-        2) Find *other* users who bought those same events.
-        3) Collect ALL events those other users have bought that the original
-           user has NOT bought yet.
-        4) From those recommended events, read ev.organizatoriai (JSON string)
-           and count how often each (name, email) pair appears.
-        5) Return TOP N organizers as:
-           [{ "name": ..., "email": ..., "score": <int> }, ...]
+            (u:User {id: user_id})-[:BOUGHT*1..max_depth]-(rec:Event)
+
+        That means:
+        - 1 hop  -> events this user bought
+        - 2 hops -> other users
+        - 3+ hops -> events/users further away, etc.
+
+        We then:
+        - Exclude events this user already bought.
+        - Collect organizers from the remaining events.
+        - Count how often each (name, email) pair appears.
+        - Return top N organizers.
         """
-        cypher = """
-            MATCH (u:User {id: $user_id})-[:BOUGHT]->(e:Event)
-            MATCH (other:User)-[:BOUGHT]->(e)
-            MATCH (other)-[:BOUGHT]->(rec:Event)
+        # NOTE: variable-length upper bound can't be parameterized, so we
+        # inject max_depth directly into the Cypher string.
+        cypher = f"""
+            MATCH (u:User {{id: $user_id}})
+            MATCH p = (u)-[:BOUGHT*1..{max_depth}]-(rec:Event)
             WHERE NOT (u)-[:BOUGHT]->(rec)
+            WITH DISTINCT rec
             RETURN rec.organizatoriai AS organizers_json
         """
 
@@ -257,6 +263,7 @@ class GraphDB():
                 if not (name or email):
                     continue
 
+                # Count organizers (unique by name+email)
                 key = (name, email)
                 counter[key] += 1
 
@@ -269,5 +276,4 @@ class GraphDB():
                 "score": int(score)
             })
         return result
-
 
