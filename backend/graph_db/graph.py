@@ -44,19 +44,6 @@ class GraphDB():
             result = session.run(query, params or {})
             return [record.data() for record in result]
 
-    # -------------------------
-    # Basic helpers
-    # -------------------------
-    def add_event(self, event_id, event_date):
-        """Create/update event with date"""
-        query = """
-            MERGE (e:Event {id: $event_id})
-            SET e.date = datetime($event_date)
-        """
-        return self._run_query(query, {
-            'event_id': event_id,
-            'event_date': event_date
-        })
 
     def has_purchase_history(self, user_id):
         """Check if user has any purchase history"""
@@ -170,35 +157,7 @@ class GraphDB():
 
         return self._run_query(query, params)
 
-    # -------------------------
-    # Upcoming events (simple)
-    # -------------------------
-    def get_upcoming_events(self, months=2, limit=5):
-        """Get upcoming events within specified time range"""
-        query = """
-            MATCH (e:Event) 
-            WHERE datetime(e.data) >= datetime()
-              AND datetime(e.data) <= datetime() + duration({months: $months}) 
-            RETURN e.id as event_id,
-                   e.data as event_date,
-                   e.pavadinimas as title,
-                   e.tipas as type,
-                   e.adresas as address,
-                   e.miestas as city,
-                   e.vieta as venue,
-                   e.amziaus_cenzas as age_restriction,
-                   e.renginio_trukme as duration,
-                   e.bilieto_tipai as ticket_types,
-                   e.organizatoriai as organizers
-            ORDER BY e.data 
-            LIMIT $limit - Top N
-        """
-
-        return self._run_query(query, {
-            'months': months,
-            'limit': limit
-        })
-
+   
     # -------------------------
     # Organizer recommendations (MULTI-HOP)
     # -------------------------
