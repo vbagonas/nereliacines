@@ -13,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 class GraphDB():
     def __init__(self):
         self.driver = self.connect()
+        self.session = self.driver.session(database="neo4j")
         print("✅ Connected to Neo4j database")
 
     def connect(self):
@@ -26,10 +27,6 @@ class GraphDB():
         )
         return driver
 
-    def close(self):
-        """Close connection"""
-        self.session.close()
-        self.driver.close()
 
     def _run_query(self, query, params=None):
         """
