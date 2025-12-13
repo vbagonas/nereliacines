@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from backend.app.extensions import db, redis, neo4
+from backend.app.extensions import db, redis, neo4, clickhouse
 from datetime import datetime, timezone
 
 # URL prefix is /api/v1
@@ -115,20 +115,21 @@ def purchase():
                 redis.set_cache("valid_events", valid_ids)
 
     # ✅ ADDED: Record purchase in Neo4j for recommendations
+# pridedam i neo4j
+    neo4.add_purchase(vartotojo_id, renginys_id)
+    
+    # 📤 SYNC TO CLICKHOUSE (NEW - ADD THESE LINES)
+    order["_id"] = str(ins.inserted_id)   # Add MongoDB _id to order
+    
     try:
-        neo4.add_purchase(vartotojo_id, renginys_id)
-        print(f"✅ Recorded purchase in Neo4j: {vartotojo_id} -> {renginys_id}")
+        clickhouse.sync_order_item(order)
     except Exception as e:
-        print(f"⚠️ Failed to record in Neo4j: {e}")
-        # Don't fail the purchase if Neo4j fails
+        print(f"⚠️ ClickHouse order sync failed: {e}")
 
-    # 🔧 Mongo į order dictą įdeda _id: ObjectId(...) → paverčiam į str, kad būtų serializuojama
-    if "_id" in order:
-        order["_id"] = str(order["_id"])
+    try:
+        new_likutis = likutis - kiekis
+        clickhouse.update_ticket_inventory(renginys_id, bilieto_tipas_id, new_likutis)
+    except Exception as e:
+        print(f"⚠️ ClickHouse inventory update failed: {e}")
 
-    return jsonify({
-        "ok": True,
-        "message": "Purchase successful.",
-        "order_id": str(ins.inserted_id),
-        "order": order,
-    })
+    return jsonify({"ok": True, "message": "Purchase successful.", "order_id": str(ins.inserted_id), "order": order})

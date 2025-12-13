@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from backend.app.extensions import db, neo4
+from backend.app.extensions import db, neo4, clickhouse
 from backend.app.utils.auth import verify_password, hash_password
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1')
@@ -47,6 +47,10 @@ def register_user():
         "Slaptazodis": hashed_password,
     }
 
+    # STEP 1: Save to MongoDB
+    db.vartotojai.insert_one(user_doc)
+    
+    # STEP 2: Sync to Neo4j
     neo4.add_user(
         user_id=email,
         vardas=user_doc.get("Vardas"),
@@ -54,8 +58,12 @@ def register_user():
         miestas=user_doc.get("Miestas"),
         pomegiai=user_doc.get("Pomegiai", [])
     )
+    
+    # STEP 3: 📤 Sync to ClickHouse
+    try:
+        clickhouse.sync_user(user_doc)
+    except Exception as e:
+        print(f"⚠️ ClickHouse sync failed (non-critical): {e}")
 
-    db.vartotojai.insert_one(user_doc)
     public_user = {k: v for k, v in user_doc.items() if k != "Slaptazodis"}
-
     return jsonify({"ok": True, "user": public_user})
