@@ -10,10 +10,10 @@ class ClickHouseClient():
     def connect(self):
         with open(PROJECT_ROOT / 'creds.yml', 'r') as f:
             data = yaml.safe_load(f) or {}
-        creds = data.get('neo4j_user', data)
+        creds = data.get('clickhouse_user', data)
 
         client = clickhouse_connect.get_client(
-        host='e4h24gda5p.eu-central-1.aws.clickhouse.cloud',
+        host='ygwf2e1uyd.eu-central-1.aws.clickhouse.cloud',
         user=creds['username'],
         password=creds['password'],
         secure=True
